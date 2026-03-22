@@ -1,0 +1,63 @@
+---
+title: Quickstart
+description: Get Janus running in 5 minutes with Docker Compose.
+---
+
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+- Node.js 20+ (for development only)
+
+## Option 1: Docker Compose (recommended)
+
+```bash
+# Download the compose file
+curl -O https://raw.githubusercontent.com/elliot736/janus/main/docker-compose.yml
+
+# Create environment file
+cat > .env << 'EOF'
+DB_PASSWORD=$(openssl rand -hex 32)
+HMAC_SECRET=$(openssl rand -hex 32)
+TOKEN_SECRET=$(openssl rand -hex 32)
+COOKIE_SECRET=$(openssl rand -hex 32)
+BETTER_AUTH_SECRET=$(openssl rand -hex 32)
+CORS_ORIGIN=http://localhost:3000
+REDIS_PASSWORD=$(openssl rand -hex 32)
+EOF
+
+# Start everything
+docker compose up -d
+```
+
+This starts 5 containers: Nginx (port 80), API, Dashboard, PostgreSQL, and Redis.
+
+- **Dashboard:** [http://localhost:3000](http://localhost:3000)
+- **API:** [http://localhost:3001](http://localhost:3001)
+
+## Option 2: Development (from source)
+
+```bash
+git clone https://github.com/elliot736/janus.git
+cd janus
+npm install
+cp .env.example .env
+# Edit .env — fill each secret with: openssl rand -hex 32
+
+# Start database and cache
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up postgres redis -d
+
+# Set up schema
+cd apps/api && npx drizzle-kit push && cd ../..
+
+# Seed test data
+cd apps/api && npm run db:seed && cd ../..
+
+# Run everything
+npm run dev
+```
+
+## Next steps
+
+1. [Create a site](/docs/getting-started/configuration) in the dashboard
+2. [Add the SDK](/docs/integration/react) to your frontend
+3. [Validate tokens](/docs/api-reference/siteverify) on your backend

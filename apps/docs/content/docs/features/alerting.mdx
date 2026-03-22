@@ -1,0 +1,37 @@
+---
+title: Email Alerting
+description: SMTP-based email alerts with per-event throttling.
+---
+
+Janus sends email alerts for security events like blocked verifications, block rate spikes, and adaptive difficulty changes.
+
+## Setup
+
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=janus@yourcompany.com
+SMTP_PASS=app-password
+SMTP_FROM=janus@yourcompany.com
+ALERT_EMAIL=security@yourcompany.com
+ALERT_THROTTLE_SECONDS=300  # 5 minutes between same alerts
+```
+
+If `SMTP_HOST` is not set, alerting is silently disabled.
+
+## Alert types
+
+| Event | Trigger | Details |
+|-------|---------|---------|
+| `verification_blocked` | Verification blocked | Risk score, anomalies, country, IP |
+| `block_rate_spike` | Adaptive difficulty elevated | Block rate %, effective difficulty |
+| `adaptive_difficulty_elevated` | PoW difficulty increased | Base, bonus, new level |
+| `circuit_breaker_opened` | Redis rate limiter opened | Failure count, duration |
+
+## Throttling
+
+Alerts are throttled per `event + site` combination. During an attack generating 1000 blocks/minute, you receive one `verification_blocked` email per throttle window (default: 5 min). Different events and different sites are throttled independently.
+
+## Email format
+
+Styled HTML emails with a dark theme matching the Janus dashboard. Subject format: `[Janus] Verification Blocked — Production`.

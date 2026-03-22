@@ -1,0 +1,118 @@
+---
+title: React
+description: Integrate Janus in React apps with the useJanus() hook.
+---
+
+## Install
+
+```bash
+npm install @janus/react @janus/sdk
+```
+
+## Setup
+
+Wrap your app with `JanusProvider`:
+
+```tsx
+import { JanusProvider } from '@janus/react';
+
+function App() {
+  return (
+    <JanusProvider config={{
+      siteKey: "jns_site_live_xxxxxxxxxxxx",
+      apiUrl: "https://your-janus.com",
+      mode: "invisible",
+    }}>
+      <YourApp />
+    </JanusProvider>
+  );
+}
+```
+
+## Invisible mode
+
+Use the `useJanus` hook to verify on form submit:
+
+```tsx
+import { useJanus } from '@janus/react';
+
+function LoginForm() {
+  const { execute, loading, error } = useJanus();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await execute();
+    if (result.success) {
+      // Send result.token to your backend
+      await fetch('/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ ...formData, 'janus-token': result.token }),
+      });
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {error && <p className="text-red-500">{error}</p>}
+      <button disabled={loading}>
+        {loading ? 'Verifying...' : 'Log in'}
+      </button>
+    </form>
+  );
+}
+```
+
+## Managed mode (checkbox widget)
+
+```tsx
+import { JanusProvider, JanusWidget } from '@janus/react';
+
+function ProtectedForm() {
+  const [token, setToken] = useState('');
+
+  return (
+    <JanusProvider config={{
+      siteKey: "jns_site_live_xxxxxxxxxxxx",
+      apiUrl: "https://your-janus.com",
+      mode: "managed",
+    }}>
+      <form>
+        <JanusWidget
+          onVerify={(token) => setToken(token)}
+          onError={(err) => console.error(err)}
+        />
+        <input type="hidden" name="janus-token" value={token} />
+        <button disabled={!token}>Submit</button>
+      </form>
+    </JanusProvider>
+  );
+}
+```
+
+## Auto-verify on mount
+
+```tsx
+import { JanusInvisible } from '@janus/react';
+
+function Page() {
+  return (
+    <JanusInvisible
+      onVerify={(token) => {
+        document.cookie = `janus-token=${token}`;
+      }}
+    />
+  );
+}
+```
+
+## API
+
+### `useJanus()`
+
+| Return | Type | Description |
+|--------|------|-------------|
+| `execute` | `() => Promise<VerifyResult>` | Run verification |
+| `result` | `VerifyResult \| null` | Last result |
+| `loading` | `boolean` | In progress |
+| `error` | `string \| null` | Error message |
+| `reset` | `() => void` | Reset state |

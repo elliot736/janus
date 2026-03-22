@@ -1,0 +1,43 @@
+---
+title: GeoIP Intelligence
+description: Detect datacenter IPs, VPNs, and proxies using self-hosted MaxMind databases.
+---
+
+Janus uses self-hosted [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) databases for GeoIP-based risk signals. All lookups happen in-memory — no data leaves your server.
+
+## GDPR-safe by design
+
+Only the 2-letter country code is stored in the verification record. The full IP-to-location mapping is never persisted. Country codes are not personal data under GDPR.
+
+## Setup
+
+1. Create a free MaxMind account at [maxmind.com](https://www.maxmind.com/en/geolite2/signup)
+2. Download GeoLite2-City and GeoLite2-ASN databases (`.mmdb` format)
+3. Place them in `data/geoip/` or set `GEOIP_DB_PATH`
+
+```bash
+mkdir -p data/geoip
+cp GeoLite2-City.mmdb data/geoip/
+cp GeoLite2-ASN.mmdb data/geoip/
+```
+
+GeoIP is fully optional. If databases are missing, Janus starts normally with geo signals disabled.
+
+## Risk signals
+
+| Signal | Effect | Detection |
+|--------|--------|-----------|
+| Datacenter IP | +15 | AWS, GCP, Azure, DigitalOcean, Hetzner, etc. |
+| VPN detected | +10 | Anonymous VPN exit nodes |
+| Proxy detected | +10 | Anonymous proxy services |
+| Blocked country | +30 | Per-site country blocklist |
+
+## Blocked countries
+
+Configure per site via the dashboard or API:
+
+```bash
+curl -X PUT https://your-janus.com/api/v1/sites/:id \
+  -H 'Content-Type: application/json' \
+  -d '{"settings": {"blockedCountries": ["XX", "YY"]}}'
+```

@@ -1,0 +1,36 @@
+---
+title: Docker Deployment
+description: Production deployment with Docker Compose.
+---
+
+The production Docker Compose stack runs 5 containers with health checks, persistent volumes, and Nginx for TLS termination and rate limiting.
+
+## Containers
+
+| Container | Image | Port | Purpose |
+|-----------|-------|------|---------|
+| nginx | nginx:1.27-alpine | 80, 443 | Reverse proxy, TLS, rate limiting, security headers |
+| janus-api | Dockerfile.api | 3001 (internal) | Backend API |
+| janus-dashboard | Dockerfile.dashboard | 3000 (internal) | Admin UI |
+| postgres | postgres:16-alpine | 5432 (internal) | Primary database |
+| redis | redis:7-alpine | 6379 (internal) | Rate limiting, caching, metrics |
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DB_PASSWORD` | Yes | — | PostgreSQL password |
+| `HMAC_SECRET` | Yes | — | HMAC key for challenge binding |
+| `TOKEN_SECRET` | Yes | — | Token signing key |
+| `COOKIE_SECRET` | Yes | — | Session cookie encryption |
+| `BETTER_AUTH_SECRET` | Yes | — | Auth session crypto |
+| `CORS_ORIGIN` | Yes | — | Dashboard origin URL |
+| `REDIS_PASSWORD` | Yes | — | Redis auth password |
+| `DATA_RETENTION_DAYS` | No | 30 | Auto-delete age for verifications |
+| `GEOIP_DB_PATH` | No | data/geoip | Path to MaxMind .mmdb files |
+| `SMTP_HOST` | No | — | SMTP server for email alerts |
+| `SMTP_PORT` | No | 587 | SMTP port |
+| `SMTP_USER` | No | — | SMTP username |
+| `SMTP_PASS` | No | — | SMTP password |
+| `SMTP_FROM` | No | — | Alert sender address |
+| `ALERT_EMAIL` | No | — | Alert recipient address |

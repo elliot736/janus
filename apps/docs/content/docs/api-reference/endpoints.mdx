@@ -1,0 +1,85 @@
+---
+title: API Endpoints
+description: Complete API reference for Janus.
+---
+
+## Public (used by SDK)
+
+### POST /api/v1/challenge
+
+Request a proof-of-work challenge.
+
+**Headers:** `X-Site-Key` (required)
+
+**Response:**
+```json
+{
+  "challengeId": "uuid",
+  "challenge": "hmac-hash",
+  "difficulty": 4,
+  "mode": "invisible",
+  "algorithm": "SHA-256",
+  "expiresAt": "2026-03-22T10:05:00.000Z"
+}
+```
+
+### POST /api/v1/verify
+
+Submit a solved challenge with collected signals.
+
+**Headers:** `X-Site-Key` (required)
+
+**Body:**
+```json
+{
+  "challengeId": "uuid",
+  "nonce": "48291",
+  "solveTimeMs": 1847,
+  "fingerprint": { "canvas": "...", "webgl": "..." },
+  "behaviorData": { "mouseMovements": 23, "keystrokes": 5 }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "token": "signed-token",
+  "riskScore": 15,
+  "action": "allow",
+  "expiresAt": "2026-03-22T10:10:00.000Z"
+}
+```
+
+## Server-side validation
+
+### POST /api/v1/siteverify
+
+See [Siteverify](/docs/api-reference/siteverify).
+
+## Dashboard (authenticated)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET/POST | `/api/v1/sites` | List / create sites |
+| GET/PUT/DELETE | `/api/v1/sites/:id` | Get / update / delete site |
+| POST | `/api/v1/sites/:id/rotate-keys` | Rotate site keys |
+| GET/POST | `/api/v1/sites/:siteId/api-keys` | List / create API keys |
+| DELETE | `/api/v1/api-keys/:id` | Delete API key |
+| GET | `/api/v1/analytics/:siteId/summary` | Summary stats |
+| GET | `/api/v1/analytics/:siteId/requests-per-day` | Daily request counts |
+| GET | `/api/v1/analytics/:siteId/risk-distribution` | Risk score buckets |
+| GET | `/api/v1/analytics/:siteId/top-ips` | Top IPs by request count |
+| GET | `/api/v1/analytics/:siteId/stream` | SSE real-time analytics |
+| GET | `/api/v1/analytics/:siteId/adaptive-difficulty` | Current adaptive state |
+| GET | `/api/v1/sites/:siteId/verifications` | Paginated verification logs |
+| DELETE | `/api/v1/sites/:siteId/data` | Delete data (GDPR erasure) |
+
+## Operational
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Liveness (always 200) |
+| `GET /ready` | Readiness (checks DB + Redis) |
+| `GET /metrics` | Prometheus text format |
+| `GET /docs` | OpenAPI/Swagger (non-production) |

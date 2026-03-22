@@ -1,0 +1,60 @@
+---
+title: Webhooks
+description: Receive HMAC-signed webhook notifications for security events.
+---
+
+Sites can register a webhook URL to receive real-time notifications when verifications are blocked.
+
+## Setup
+
+Configure in site settings via the dashboard or API:
+
+```bash
+curl -X PUT https://your-janus.com/api/v1/sites/:id \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "settings": {
+      "webhookUrl": "https://your-app.com/webhooks/janus",
+      "webhookSecret": "your-webhook-secret"
+    }
+  }'
+```
+
+## Payload
+
+```json
+{
+  "event": "verification.blocked",
+  "siteId": "site-uuid",
+  "timestamp": "2026-03-22T12:00:00.000Z",
+  "data": {
+    "riskScore": 85,
+    "anomalies": ["datacenter_ip", "vpn_detected"],
+    "countryCode": "DE"
+  }
+}
+```
+
+## Signature verification
+
+Payloads are signed with HMAC-SHA256 using your webhook secret. Verify the `X-Janus-Signature` header:
+
+```javascript
+const crypto = require('crypto');
+
+const signature = req.headers['x-janus-signature'];
+const expected = 'sha256=' + crypto
+  .createHmac('sha256', webhookSecret)
+  .update(JSON.stringify(req.body))
+  .digest('hex');
+
+if (signature !== expected) {
+  return res.status(401).send('Invalid signature');
+}
+```
+
+## Delivery
+
+- Fire-and-forget with 10-second timeout
+- Webhook failures are logged but never block verification
+- The event type is also sent in the `X-Janus-Event` header

@@ -1,0 +1,30 @@
+---
+title: Introduction
+description: Janus is a self-hosted bot detection platform — an open-source alternative to Cloudflare Turnstile and reCAPTCHA.
+---
+
+**Janus** protects your forms, logins, and APIs from bots using proof-of-work challenges, browser fingerprinting, behavioral analysis, and cross-signal validation. You deploy it on your own infrastructure and keep full control.
+
+## Why Janus
+
+- **Privacy-first.** No third-party scripts, no cookies, no data leaving your servers.
+- **Open source.** Fully auditable scoring engine with tunable thresholds.
+- **Lightweight.** The browser SDK is ~5KB gzipped with zero dependencies.
+- **Self-hosted.** Deploy anywhere — Docker Compose, AWS, or Kubernetes.
+- **Extensible.** Plugin system for custom risk scoring logic.
+
+## How it works
+
+1. The SDK requests a proof-of-work challenge from your server.
+2. While the PoW solver runs in a Web Worker, the SDK collects fingerprints, behavioral signals, and automation markers.
+3. All signals are submitted to your server for risk scoring.
+4. The server returns a signed token with the risk score and action (allow/challenge/block).
+5. Your backend validates the token with a single API call.
+
+## Quick links
+
+- [Quickstart](/docs/getting-started/quickstart) — Get running in 5 minutes
+- [React Integration](/docs/integration/react) — `useJanus()` hook and components
+- [Next.js Integration](/docs/integration/nextjs) — Client + server-side verification
+- [Express Integration](/docs/integration/express) — One-line middleware
+- [API Reference](/docs/api-reference/endpoints) — Full endpoint documentation

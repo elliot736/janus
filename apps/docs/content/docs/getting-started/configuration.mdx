@@ -1,0 +1,35 @@
+---
+title: Configuration
+description: Create a site and configure detection settings.
+---
+
+After deploying Janus, sign in to the dashboard and create your first site.
+
+## Create a site
+
+1. Go to **Sites** → **Add Site**
+2. Enter a name and at least one domain
+3. Save your **site key** (public, embedded in HTML) and **secret key** (server-side only)
+
+## Detection settings
+
+Each site can be configured independently:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Detection mode | invisible | `invisible` runs silently; `managed` shows a checkbox widget |
+| PoW difficulty | 4 | 1 (easy) to 8 (hard). Adaptive difficulty adjusts this automatically |
+| Allow threshold | 30 | Scores below this are allowed |
+| Challenge threshold | 60 | Scores between allow and block thresholds trigger challenges |
+| Block threshold | 80 | Scores above this are blocked |
+| Blocked countries | — | ISO country codes to block (e.g., `["XX", "YY"]`) |
+| GDPR mode | off | Anonymizes IPs, enforces data retention |
+| Rate limit | 1000/min | Per-site request limit |
+
+## Key prefixes
+
+```
+jns_site_live_xxxx      Public site key (embed in HTML)
+jns_secret_live_xxxx    Secret key (server-side only)
+jns_api_xxxx            API key (site-scoped)
+```

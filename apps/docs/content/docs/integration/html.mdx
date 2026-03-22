@@ -1,0 +1,75 @@
+---
+title: HTML / Vanilla JS
+description: Integrate Janus without any framework using a script tag.
+---
+
+## Script tag
+
+```html
+<script src="https://your-janus.com/sdk.js"></script>
+```
+
+Or use a versioned URL for pinned deployments:
+
+```html
+<script src="https://your-janus.com/sdk/v1/janus.js"></script>
+```
+
+## Invisible mode
+
+```html
+<form id="myForm" action="/api/submit" method="POST">
+  <input type="hidden" name="janus-token" id="janusToken" />
+  <button type="submit">Submit</button>
+</form>
+
+<script>
+  const janus = new Janus.Janus({
+    siteKey: "jns_site_live_xxxxxxxxxxxx",
+    apiUrl: "https://your-janus.com",
+    mode: "invisible",
+  });
+
+  document.getElementById("myForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const result = await janus.execute();
+    if (result.success) {
+      document.getElementById("janusToken").value = result.token;
+      e.target.submit();
+    }
+  });
+</script>
+```
+
+## Managed mode (checkbox)
+
+```html
+<div id="janus-container"></div>
+
+<script>
+  const janus = new Janus.Janus({
+    siteKey: "jns_site_live_xxxxxxxxxxxx",
+    apiUrl: "https://your-janus.com",
+    mode: "managed",
+  });
+
+  janus.render("janus-container");
+</script>
+```
+
+## Server-side validation
+
+After receiving the form submission, validate the token:
+
+```javascript
+const res = await fetch("https://your-janus.com/api/v1/siteverify", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    secret: process.env.JANUS_SECRET_KEY,
+    token: req.body["janus-token"],
+  }),
+});
+
+const { success, action, risk_score } = await res.json();
+```

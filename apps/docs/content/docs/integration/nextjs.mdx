@@ -1,0 +1,146 @@
+---
+title: Next.js
+description: Full Next.js integration — client components, server-side verification, and middleware protection.
+---
+
+## Install
+
+```bash
+npm install @janus/nextjs @janus/sdk
+```
+
+## Client-side (App Router)
+
+`@janus/nextjs` re-exports everything from `@janus/react`, so you get the same `JanusProvider`, `useJanus`, and components.
+
+```tsx
+// app/providers.tsx
+"use client";
+import { JanusProvider } from '@janus/nextjs';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <JanusProvider config={{
+      siteKey: process.env.NEXT_PUBLIC_JANUS_SITE_KEY!,
+      apiUrl: process.env.NEXT_PUBLIC_JANUS_API_URL!,
+      mode: "invisible",
+    }}>
+      {children}
+    </JanusProvider>
+  );
+}
+```
+
+```tsx
+// app/layout.tsx
+import { Providers } from './providers';
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
+```
+
+Then use `useJanus()` in any client component — see the [React docs](/docs/integration/react).
+
+## Server-side verification
+
+### Route Handler
+
+```typescript
+// app/api/submit/route.ts
+import { verifyJanusToken } from '@janus/nextjs/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+
+  const result = await verifyJanusToken(body['janus-token'], {
+    secretKey: process.env.JANUS_SECRET_KEY!,
+    apiUrl: process.env.JANUS_API_URL!,
+  });
+
+  if (!result.success || result.action === 'block') {
+    return NextResponse.json({ error: 'Bot detected' }, { status: 403 });
+  }
+
+  // Process the form submission...
+  return NextResponse.json({ ok: true });
+}
+```
+
+### Server Action
+
+```typescript
+"use server";
+import { verifyJanusToken } from '@janus/nextjs/server';
+
+export async function submitForm(formData: FormData) {
+  const token = formData.get('janus-token') as string;
+
+  const result = await verifyJanusToken(token, {
+    secretKey: process.env.JANUS_SECRET_KEY!,
+    apiUrl: process.env.JANUS_API_URL!,
+  });
+
+  if (!result.success || result.action === 'block') {
+    throw new Error('Bot detected');
+  }
+
+  // Process form...
+}
+```
+
+## Middleware protection
+
+Auto-verify POST requests to protected routes:
+
+```typescript
+// middleware.ts
+import { withJanusProtection } from '@janus/nextjs/server';
+
+export default withJanusProtection({
+  secretKey: process.env.JANUS_SECRET_KEY!,
+  apiUrl: process.env.JANUS_API_URL!,
+  protectedPaths: ['/api/submit', '/api/contact', '/api/signup'],
+  rejectActions: ['block'], // also add 'challenge' to be stricter
+});
+
+export const config = {
+  matcher: '/api/:path*',
+};
+```
+
+## CDN script loading
+
+If you prefer loading the SDK from your Janus CDN instead of bundling:
+
+```tsx
+import { JanusScript } from '@janus/nextjs';
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {children}
+        <JanusScript src="https://your-janus.com/sdk/v1/janus.js" />
+      </body>
+    </html>
+  );
+}
+```
+
+## Environment variables
+
+```bash
+# .env.local
+NEXT_PUBLIC_JANUS_SITE_KEY=jns_site_live_xxxxxxxxxxxx
+NEXT_PUBLIC_JANUS_API_URL=https://your-janus.com
+JANUS_SECRET_KEY=jns_secret_live_xxxxxxxxxxxx
+JANUS_API_URL=https://your-janus.com
+```

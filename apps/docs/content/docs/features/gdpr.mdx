@@ -1,0 +1,48 @@
+---
+title: GDPR Compliance
+description: Privacy-first design with optional GDPR mode for stricter IP handling.
+---
+
+Janus is privacy-first by design. It does not set cookies, does not use third-party scripts, and does not send data to external services.
+
+## What data is stored
+
+- **IP addresses** — in challenges and verifications tables
+- **Fingerprint hashes** — one-way SHA-256 hashes (cannot be reversed)
+- **Behavior scores** — aggregate values (e.g., "mouse velocity variance: 0.6"), not raw events
+- **Country codes** — 2-letter ISO codes from GeoIP (not personal data)
+
+## GDPR mode
+
+Enable per site in the dashboard or API:
+
+```bash
+curl -X PUT https://your-janus.com/api/v1/sites/:id \
+  -d '{"settings": {"gdprMode": true}}'
+```
+
+| | Standard | GDPR Mode |
+|---|---|---|
+| All detection signals | Yes | Yes |
+| Risk scoring | All signals | All signals |
+| IP storage | Full IP | Anonymized (last octets zeroed) |
+| Data retention | Manual | Auto-delete after N days |
+
+## Data retention
+
+Set `DATA_RETENTION_DAYS` in your environment (default: 30). Cleanup runs daily at 2am UTC.
+
+## Right to erasure
+
+```
+DELETE /api/v1/sites/:siteId/data?ip=192.168.1.47
+DELETE /api/v1/sites/:siteId/data?fingerprint=abc123
+```
+
+## Privacy by design
+
+- **No cookies.** The SDK is stateless.
+- **No third-party scripts.** Everything runs on your servers.
+- **No cross-site tracking.** Fingerprint hashes are site-scoped.
+- **No raw signal storage.** Only hashes and aggregate scores are persisted.
+- **No user profiles.** Each request is scored independently.

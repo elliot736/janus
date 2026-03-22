@@ -1,0 +1,38 @@
+---
+title: Risk Scoring
+description: How Janus scores each verification from 0 (human) to 100 (bot).
+---
+
+Every verification produces a risk score from 0 (human) to 100 (bot). The score is built from multiple independent signals processed through the built-in scoring engine and then through any registered [plugins](/docs/features/plugins).
+
+## Signal table
+
+| Signal | Effect | What It Catches |
+|--------|--------|-----------------|
+| PoW solved in < 100ms | +25 | GPU solvers, pre-computed answers |
+| PoW solved in 1-15s | -10 | Normal browser performance |
+| No mouse or keyboard events | +20 | Headless browsers, scripts |
+| High behavioral entropy | -15 | Natural human movement patterns |
+| Low behavioral entropy | +20 | Robotic, constant-speed movement |
+| Fingerprint inconsistency | +10 to +20 | Spoofed browser properties |
+| High fingerprint velocity | +15 to +25 | Bot farms recycling profiles |
+| `navigator.webdriver` is true | +40 | Selenium, Puppeteer, Playwright |
+| Missing JA3 hash | +5 | Non-browser HTTP clients |
+| Datacenter/hosting IP | +15 | AWS, GCP, Azure, DigitalOcean |
+| VPN detected | +10 | Anonymous VPN exit nodes |
+| Proxy detected | +10 | Anonymous proxy services |
+| Blocked country | +30 | Per-site country blocklist |
+
+## Default thresholds
+
+| Score range | Action | Meaning |
+|-------------|--------|---------|
+| 0-29 | **allow** | Issue token, zero friction |
+| 30-69 | **challenge** | Increase PoW difficulty |
+| 70-100 | **block** | Reject the request |
+
+All thresholds are configurable per site in the dashboard.
+
+## Mode-aware scoring
+
+In **invisible mode**, behavior collection runs for ~150ms so low interaction is normal — penalized lightly (+5). In **managed mode**, the user clicks a checkbox so the server expects real interaction — absence is penalized heavily (+20).

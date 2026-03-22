@@ -1,0 +1,75 @@
+---
+title: Plugin System
+description: Extend the risk scoring engine with custom logic.
+---
+
+Janus includes a plugin system for adding custom risk scoring logic. Plugins run after the built-in scoring engine and can adjust scores based on your own data sources, business rules, or threat intelligence.
+
+## Writing a plugin
+
+```typescript
+import type { RiskPlugin } from './plugins/risk-plugin.interface';
+
+const ipBlocklistPlugin: RiskPlugin = {
+  name: 'ip-blocklist',
+  description: 'Check IP against internal blocklist',
+  priority: 10,
+  async evaluate(ctx) {
+    const blocked = await myDatabase.isBlocked(ctx.ipAddress);
+    return blocked
+      ? { scoreAdjustment: 40, anomalies: ['ip_blocklisted'] }
+      : { scoreAdjustment: 0 };
+  },
+};
+```
+
+## Registering plugins
+
+```typescript
+import { PluginRegistryService } from './plugins';
+
+@Injectable()
+export class MyPlugins implements OnModuleInit {
+  constructor(private readonly registry: PluginRegistryService) {}
+
+  onModuleInit() {
+    // Global: runs on all sites
+    this.registry.registerGlobal(ipBlocklistPlugin);
+
+    // Site-scoped: runs only for this site
+    this.registry.registerForSite('site-uuid', myPlugin);
+  }
+}
+```
+
+## Plugin context
+
+Plugins receive a `RiskPluginContext` with all available signals:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `siteId` | string | Site being verified |
+| `ipAddress` | string | Client IP |
+| `countryCode` | string \| null | GeoIP country code |
+| `isDatacenter` | boolean | Datacenter IP flag |
+| `isVpn` / `isProxy` | boolean | VPN/proxy detection |
+| `asn` / `asnOrg` | number/string \| null | ASN info |
+| `fingerprintHash` | string \| null | Browser fingerprint |
+| `solveTimeMs` | number \| null | PoW solve time |
+| `behaviorData` | object \| null | Raw behavioral signals |
+| `currentScore` | number | Score before this plugin |
+| `currentAnomalies` | string[] | Anomalies so far |
+
+## Safety
+
+- Adjustments are clamped to **[-50, +50]** per plugin
+- Plugin errors are caught and logged — they never block verification
+- Plugins execute in **priority order** (lower number = first)
+- Each plugin sees the **updated score** from previous plugins
+
+## Built-in plugins
+
+| Plugin | Priority | Logic |
+|--------|----------|-------|
+| `rate-abuse-detector` | 50 | +15 if datacenter + score >= 60; +10 if 3+ anomalies + score >= 70 |
+| `time-of-day` | 90 | +5 during off-peak hours (2-6am UTC) |

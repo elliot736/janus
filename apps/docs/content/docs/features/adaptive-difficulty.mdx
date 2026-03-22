@@ -1,0 +1,39 @@
+---
+title: Adaptive Difficulty
+description: Automatic PoW difficulty adjustment based on real-time attack patterns.
+---
+
+Janus automatically increases proof-of-work difficulty when a site is under attack. This makes it progressively harder for bots to solve challenges during high-traffic attack periods, while keeping difficulty low during normal traffic.
+
+## How it works
+
+1. Every verification outcome (allow/challenge/block) is tracked per site in a Redis sliding window (5 minutes)
+2. When a new challenge is requested, Janus computes the recent block rate
+3. A difficulty bonus is added on top of the site's base difficulty
+
+## Difficulty tiers
+
+| Block Rate | Bonus | Example (base=4) |
+|------------|-------|-------------------|
+| < 15% | +0 | Difficulty: 4 |
+| 15%+ | +1 | Difficulty: 5 |
+| 25%+ | +2 | Difficulty: 6 |
+| 40%+ | +3 | Difficulty: 7 |
+| 60%+ | +4 | Difficulty: 8 |
+
+Maximum total difficulty is capped at 8. The minimum sample size is 10 verifications before adaptive mode activates.
+
+## Auto-decay
+
+As attack traffic ages out of the 5-minute window, the block rate drops and difficulty returns to baseline. No manual intervention needed.
+
+## Dashboard
+
+The adaptive difficulty status is visible in two places:
+
+- **Analytics page** — Banner showing current state, whether elevated, and the bonus applied
+- **Settings page** — Indicator below the PoW difficulty slider showing effective difficulty
+
+## Graceful degradation
+
+If Redis is unavailable, adaptive difficulty returns a bonus of 0 and the site's base difficulty is used.

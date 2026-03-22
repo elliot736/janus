@@ -1,0 +1,4 @@
+{
+  "title": "Features",
+  "pages": ["risk-scoring", "geoip", "adaptive-difficulty", "plugins", "webhooks", "alerting", "gdpr"]
+}

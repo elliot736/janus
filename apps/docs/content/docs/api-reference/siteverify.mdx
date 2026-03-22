@@ -1,0 +1,77 @@
+---
+title: Siteverify
+description: Server-side token validation endpoint.
+---
+
+## POST /api/v1/siteverify
+
+Validates a Janus verification token. Called from your backend after receiving the token from the client.
+
+### Request
+
+```json
+{
+  "secret": "jns_secret_live_xxxxxxxxxxxx",
+  "token": "token-from-client",
+  "remoteip": "1.2.3.4"  // optional
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `secret` | Yes | Your site secret key |
+| `token` | Yes | Token received from the client SDK |
+| `remoteip` | No | Client IP — if provided, must match the IP used during verification |
+
+### Success response
+
+```json
+{
+  "success": true,
+  "challenge_ts": "2026-03-22T10:00:00.000Z",
+  "hostname": "example.com",
+  "action": "allow",
+  "risk_score": 15
+}
+```
+
+### Error response
+
+```json
+{
+  "success": false,
+  "error": "Token has expired",
+  "error-codes": ["token-expired"]
+}
+```
+
+### Error codes
+
+| Code | Meaning |
+|------|---------|
+| `token-expired` | Token TTL (5 minutes) exceeded |
+| `token-invalid` | HMAC signature verification failed |
+| `ip-mismatch` | `remoteip` doesn't match verification IP |
+| `site-mismatch` | Token was issued for a different site |
+
+### Integration examples
+
+Using `@janus/express`:
+```typescript
+app.post('/submit', janusVerify({ secretKey, apiUrl }), handler);
+```
+
+Using `@janus/nextjs`:
+```typescript
+const result = await verifyJanusToken(token, { secretKey, apiUrl });
+```
+
+Using `fetch` directly:
+```javascript
+const res = await fetch(`${apiUrl}/api/v1/siteverify`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ secret: secretKey, token }),
+});
+const { success, action, risk_score } = await res.json();
+```

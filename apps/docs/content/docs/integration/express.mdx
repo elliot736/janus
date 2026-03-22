@@ -1,0 +1,85 @@
+---
+title: Express
+description: One-line Express middleware for server-side Janus token verification.
+---
+
+## Install
+
+```bash
+npm install @janus/express
+```
+
+## Basic usage
+
+```typescript
+import express from 'express';
+import { janusVerify } from '@janus/express';
+
+const app = express();
+app.use(express.json());
+
+app.post('/login',
+  janusVerify({
+    secretKey: process.env.JANUS_SECRET_KEY!,
+    apiUrl: 'https://your-janus.com',
+  }),
+  (req, res) => {
+    // Verification passed — req.janus contains the result
+    console.log(req.janus?.risk_score); // e.g., 15
+    console.log(req.janus?.action);     // e.g., "allow"
+    res.json({ message: 'Logged in' });
+  }
+);
+```
+
+The middleware:
+1. Extracts the token from `req.body['janus-token']`
+2. Calls your Janus API's `/api/v1/siteverify` endpoint
+3. Attaches the result to `req.janus`
+4. Rejects blocked requests with 403
+5. Calls `next()` on success
+
+## Options
+
+```typescript
+janusVerify({
+  // Required
+  secretKey: process.env.JANUS_SECRET_KEY!,
+  apiUrl: 'https://your-janus.com',
+
+  // Optional: custom token extraction
+  tokenExtractor: (req) => req.headers['x-janus-token'] as string,
+
+  // Optional: also reject challenged requests
+  rejectActions: ['block', 'challenge'],
+
+  // Optional: custom rejection handler
+  onReject: (req, res, result) => {
+    res.status(403).render('blocked', { reason: result.error });
+  },
+
+  // Optional: callback on success
+  onVerify: (req, result) => {
+    console.log(`Verified: score=${result.risk_score} action=${result.action}`);
+  },
+});
+```
+
+## Standalone verification
+
+For non-Express contexts (Fastify, Koa, etc.):
+
+```typescript
+import { verifyToken } from '@janus/express';
+
+const result = await verifyToken({
+  secretKey: process.env.JANUS_SECRET_KEY!,
+  apiUrl: 'https://your-janus.com',
+  token: requestBody['janus-token'],
+  remoteIp: clientIp,
+});
+
+if (!result.success || result.action === 'block') {
+  // Reject request
+}
+```

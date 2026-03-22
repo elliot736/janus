@@ -3,7 +3,11 @@ title: Plugin System
 description: Extend the risk scoring engine with custom logic.
 ---
 
-Janus includes a plugin system for adding custom risk scoring logic. Plugins run after the built-in scoring engine and can adjust scores based on your own data sources, business rules, or threat intelligence.
+Plugins run after the built-in scoring engine. Each plugin receives the full verification context and returns a score adjustment.
+
+<Callout title="Safety guarantees">
+  Adjustments are clamped to **±50** per plugin. Errors are caught and logged — plugins never block verification. Async plugins are fully supported.
+</Callout>
 
 ## Writing a plugin
 
@@ -23,7 +27,13 @@ const ipBlocklistPlugin: RiskPlugin = {
 };
 ```
 
-## Registering plugins
+## Registering
+
+<Tabs items={["Global", "Site-scoped"]}>
+
+<Tab value="Global">
+
+Runs on every verification across all sites:
 
 ```typescript
 import { PluginRegistryService } from './plugins';
@@ -33,43 +43,69 @@ export class MyPlugins implements OnModuleInit {
   constructor(private readonly registry: PluginRegistryService) {}
 
   onModuleInit() {
-    // Global: runs on all sites
     this.registry.registerGlobal(ipBlocklistPlugin);
-
-    // Site-scoped: runs only for this site
-    this.registry.registerForSite('site-uuid', myPlugin);
   }
 }
 ```
 
+</Tab>
+
+<Tab value="Site-scoped">
+
+Runs only for a specific site:
+
+```typescript
+this.registry.registerForSite('site-uuid', geoFencingPlugin);
+```
+
+</Tab>
+
+</Tabs>
+
 ## Plugin context
 
-Plugins receive a `RiskPluginContext` with all available signals:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `siteId` | string | Site being verified |
-| `ipAddress` | string | Client IP |
-| `countryCode` | string \| null | GeoIP country code |
-| `isDatacenter` | boolean | Datacenter IP flag |
-| `isVpn` / `isProxy` | boolean | VPN/proxy detection |
-| `asn` / `asnOrg` | number/string \| null | ASN info |
-| `fingerprintHash` | string \| null | Browser fingerprint |
-| `solveTimeMs` | number \| null | PoW solve time |
-| `behaviorData` | object \| null | Raw behavioral signals |
-| `currentScore` | number | Score before this plugin |
-| `currentAnomalies` | string[] | Anomalies so far |
-
-## Safety
-
-- Adjustments are clamped to **[-50, +50]** per plugin
-- Plugin errors are caught and logged — they never block verification
-- Plugins execute in **priority order** (lower number = first)
-- Each plugin sees the **updated score** from previous plugins
+<TypeTable type={{
+  siteId: { type: 'string', description: 'Site being verified' },
+  ipAddress: { type: 'string', description: 'Client IP address' },
+  countryCode: { type: 'string | null', description: 'GeoIP country code' },
+  isDatacenter: { type: 'boolean', description: 'Datacenter IP flag' },
+  isVpn: { type: 'boolean', description: 'VPN detected' },
+  isProxy: { type: 'boolean', description: 'Proxy detected' },
+  asn: { type: 'number | null', description: 'ASN number' },
+  asnOrg: { type: 'string | null', description: 'ASN organization' },
+  fingerprintHash: { type: 'string | null', description: 'Browser fingerprint hash' },
+  solveTimeMs: { type: 'number | null', description: 'PoW solve time' },
+  behaviorData: { type: 'object | null', description: 'Raw behavioral signals' },
+  mode: { type: 'string | null', description: 'Detection mode' },
+  ja3Hash: { type: 'string | null', description: 'TLS fingerprint' },
+  currentScore: { type: 'number', description: 'Score before this plugin' },
+  currentAnomalies: { type: 'string[]', description: 'Anomalies before this plugin' },
+}} />
 
 ## Built-in plugins
 
-| Plugin | Priority | Logic |
-|--------|----------|-------|
-| `rate-abuse-detector` | 50 | +15 if datacenter + score >= 60; +10 if 3+ anomalies + score >= 70 |
-| `time-of-day` | 90 | +5 during off-peak hours (2-6am UTC) |
+<Cards>
+  <Card title="rate-abuse-detector" description="Compounds penalty when datacenter IP + high score (≥60), or 3+ anomalies + high score (≥70). Priority: 50." />
+  <Card title="time-of-day" description="Adds +5 risk during off-peak hours (2-6am UTC) when bot traffic typically spikes. Priority: 90." />
+</Cards>
+
+## Plugin execution order
+
+<Steps>
+<Step>
+### Built-in scoring engine
+PoW, fingerprint, behavior, GeoIP signals → base score
+</Step>
+<Step>
+### Global plugins (by priority)
+Lower priority number runs first. Each plugin sees updated score from previous.
+</Step>
+<Step>
+### Site-scoped plugins (by priority)
+Only plugins registered for this specific site.
+</Step>
+<Step>
+### Clamp and return
+Final score clamped to 0-100. Action determined by site thresholds.
+</Step>
+</Steps>

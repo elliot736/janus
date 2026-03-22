@@ -5,26 +5,74 @@ description: Janus is a self-hosted bot detection platform — an open-source al
 
 **Janus** protects your forms, logins, and APIs from bots using proof-of-work challenges, browser fingerprinting, behavioral analysis, and cross-signal validation. You deploy it on your own infrastructure and keep full control.
 
-## Why Janus
-
-- **Privacy-first.** No third-party scripts, no cookies, no data leaving your servers.
-- **Open source.** Fully auditable scoring engine with tunable thresholds.
-- **Lightweight.** The browser SDK is ~5KB gzipped with zero dependencies.
-- **Self-hosted.** Deploy anywhere — Docker Compose, AWS, or Kubernetes.
-- **Extensible.** Plugin system for custom risk scoring logic.
+<Callout title="Open Source & Self-Hosted">
+  All data stays on your servers. No third-party scripts, no cookies, no tracking. ~5KB SDK with zero browser dependencies.
+</Callout>
 
 ## How it works
 
-1. The SDK requests a proof-of-work challenge from your server.
-2. While the PoW solver runs in a Web Worker, the SDK collects fingerprints, behavioral signals, and automation markers.
-3. All signals are submitted to your server for risk scoring.
-4. The server returns a signed token with the risk score and action (allow/challenge/block).
-5. Your backend validates the token with a single API call.
+<Steps>
+
+<Step>
+### Challenge
+The SDK requests a proof-of-work challenge from your server. The challenge is HMAC-bound to the site, IP, and timestamp.
+</Step>
+
+<Step>
+### Collect signals
+While the PoW solver runs in a Web Worker, the SDK collects fingerprints (canvas, WebGL, audio, fonts), behavioral signals (mouse, keyboard, scroll), and automation markers (webdriver, headless).
+</Step>
+
+<Step>
+### Score
+All signals are submitted to your server. The risk scoring engine combines 20+ signals into a score from 0 (human) to 100 (bot). Plugins can add custom scoring logic.
+</Step>
+
+<Step>
+### Verify
+The server returns a signed token. Your backend validates it with a single API call to `/api/v1/siteverify`.
+</Step>
+
+</Steps>
 
 ## Quick links
 
-- [Quickstart](/docs/getting-started/quickstart) — Get running in 5 minutes
-- [React Integration](/docs/integration/react) — `useJanus()` hook and components
-- [Next.js Integration](/docs/integration/nextjs) — Client + server-side verification
-- [Express Integration](/docs/integration/express) — One-line middleware
-- [API Reference](/docs/api-reference/endpoints) — Full endpoint documentation
+<Cards>
+  <Card title="Quickstart" description="Get running in 5 minutes with Docker Compose" href="/docs/getting-started/quickstart" />
+  <Card title="React" description="useJanus() hook and JanusWidget component" href="/docs/integration/react" />
+  <Card title="Next.js" description="Client components + server-side verification" href="/docs/integration/nextjs" />
+  <Card title="Express" description="One-line janusVerify() middleware" href="/docs/integration/express" />
+  <Card title="API Reference" description="All endpoints and response formats" href="/docs/api-reference/endpoints" />
+  <Card title="Plugin System" description="Extend risk scoring with custom logic" href="/docs/features/plugins" />
+</Cards>
+
+## Project structure
+
+<Files>
+  <Folder name="apps" defaultOpen>
+    <Folder name="api" defaultOpen>
+      <File name="challenge/" />
+      <File name="verification/" />
+      <File name="geoip/" />
+      <File name="plugins/" />
+      <File name="alerting/" />
+      <File name="webhooks/" />
+    </Folder>
+    <Folder name="dashboard">
+      <File name="sites/" />
+      <File name="analytics/" />
+      <File name="settings/" />
+    </Folder>
+  </Folder>
+  <Folder name="packages" defaultOpen>
+    <File name="sdk/" />
+    <File name="react/" />
+    <File name="nextjs/" />
+    <File name="express/" />
+  </Folder>
+  <Folder name="terraform">
+    <File name="ecs.tf" />
+    <File name="rds.tf" />
+    <File name="elasticache.tf" />
+  </Folder>
+</Files>

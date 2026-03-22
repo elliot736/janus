@@ -7,6 +7,13 @@ import {
 } from 'fumadocs-ui/page';
 import { notFound } from 'next/navigation';
 import defaultMDXComponents from 'fumadocs-ui/mdx';
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+import { Files, File, Folder } from 'fumadocs-ui/components/files';
+import { Accordions, Accordion } from 'fumadocs-ui/components/accordion';
+import { TypeTable } from 'fumadocs-ui/components/type-table';
 
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
@@ -24,7 +31,7 @@ export default async function Page(props: {
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
-        <MDX components={{ ...defaultMDXComponents }} />
+        <MDX components={{ ...defaultMDXComponents, Tabs, Tab, Steps, Step, Callout, Cards, Card, Files, File, Folder, Accordions, Accordion, TypeTable }} />
       </DocsBody>
     </DocsPage>
   );

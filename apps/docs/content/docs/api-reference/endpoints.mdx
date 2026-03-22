@@ -5,7 +5,9 @@ description: Complete API reference for Janus.
 
 ## Public (used by SDK)
 
-### POST /api/v1/challenge
+<Tabs items={["POST /challenge", "POST /verify"]}>
+
+<Tab value="POST /challenge">
 
 Request a proof-of-work challenge.
 
@@ -23,7 +25,9 @@ Request a proof-of-work challenge.
 }
 ```
 
-### POST /api/v1/verify
+</Tab>
+
+<Tab value="POST /verify">
 
 Submit a solved challenge with collected signals.
 
@@ -51,35 +55,70 @@ Submit a solved challenge with collected signals.
 }
 ```
 
+</Tab>
+
+</Tabs>
+
 ## Server-side validation
 
-### POST /api/v1/siteverify
-
-See [Siteverify](/docs/api-reference/siteverify).
+See [Siteverify](/docs/api-reference/siteverify) for the full token validation reference.
 
 ## Dashboard (authenticated)
 
+<Accordions type="multiple">
+
+<Accordion title="Sites">
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET/POST | `/api/v1/sites` | List / create sites |
-| GET/PUT/DELETE | `/api/v1/sites/:id` | Get / update / delete site |
+| GET | `/api/v1/sites` | List all sites |
+| POST | `/api/v1/sites` | Create a site |
+| GET | `/api/v1/sites/:id` | Get site details |
+| PUT | `/api/v1/sites/:id` | Update site |
+| DELETE | `/api/v1/sites/:id` | Delete site |
 | POST | `/api/v1/sites/:id/rotate-keys` | Rotate site keys |
-| GET/POST | `/api/v1/sites/:siteId/api-keys` | List / create API keys |
+
+</Accordion>
+
+<Accordion title="API Keys">
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/sites/:siteId/api-keys` | List API keys |
+| POST | `/api/v1/sites/:siteId/api-keys` | Create API key |
 | DELETE | `/api/v1/api-keys/:id` | Delete API key |
+
+</Accordion>
+
+<Accordion title="Analytics">
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/api/v1/analytics/:siteId/summary` | Summary stats |
 | GET | `/api/v1/analytics/:siteId/requests-per-day` | Daily request counts |
 | GET | `/api/v1/analytics/:siteId/risk-distribution` | Risk score buckets |
-| GET | `/api/v1/analytics/:siteId/top-ips` | Top IPs by request count |
-| GET | `/api/v1/analytics/:siteId/stream` | SSE real-time analytics |
+| GET | `/api/v1/analytics/:siteId/top-ips` | Top IPs by count |
+| GET | `/api/v1/analytics/:siteId/stream` | SSE real-time feed |
 | GET | `/api/v1/analytics/:siteId/adaptive-difficulty` | Current adaptive state |
-| GET | `/api/v1/sites/:siteId/verifications` | Paginated verification logs |
-| DELETE | `/api/v1/sites/:siteId/data` | Delete data (GDPR erasure) |
+
+</Accordion>
+
+<Accordion title="Verification Logs & Data">
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/sites/:siteId/verifications` | Paginated logs |
+| DELETE | `/api/v1/sites/:siteId/data` | GDPR data erasure |
+
+</Accordion>
+
+</Accordions>
 
 ## Operational
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /health` | Liveness (always 200) |
-| `GET /ready` | Readiness (checks DB + Redis) |
-| `GET /metrics` | Prometheus text format |
-| `GET /docs` | OpenAPI/Swagger (non-production) |
+<Cards>
+  <Card title="GET /health" description="Liveness check. Always returns 200 with status: ok." />
+  <Card title="GET /ready" description="Readiness check. Verifies DB + Redis connectivity." />
+  <Card title="GET /metrics" description="Prometheus text format. Counters persist across restarts." />
+  <Card title="GET /docs" description="OpenAPI/Swagger UI. Available in non-production environments." />
+</Cards>

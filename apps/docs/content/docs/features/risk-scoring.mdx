@@ -3,36 +3,98 @@ title: Risk Scoring
 description: How Janus scores each verification from 0 (human) to 100 (bot).
 ---
 
-Every verification produces a risk score from 0 (human) to 100 (bot). The score is built from multiple independent signals processed through the built-in scoring engine and then through any registered [plugins](/docs/features/plugins).
+Every verification produces a risk score from **0** (human) to **100** (bot). The score is built from multiple independent signals, processed through the built-in engine, then through any registered [plugins](/docs/features/plugins).
 
-## Signal table
+<Callout type="info" title="Base score: 50">
+  Every verification starts at 50 (neutral). Signals add or subtract from this base. The final score is clamped to 0-100.
+</Callout>
 
-| Signal | Effect | What It Catches |
-|--------|--------|-----------------|
-| PoW solved in < 100ms | +25 | GPU solvers, pre-computed answers |
-| PoW solved in 1-15s | -10 | Normal browser performance |
-| No mouse or keyboard events | +20 | Headless browsers, scripts |
-| High behavioral entropy | -15 | Natural human movement patterns |
-| Low behavioral entropy | +20 | Robotic, constant-speed movement |
-| Fingerprint inconsistency | +10 to +20 | Spoofed browser properties |
-| High fingerprint velocity | +15 to +25 | Bot farms recycling profiles |
-| `navigator.webdriver` is true | +40 | Selenium, Puppeteer, Playwright |
-| Missing JA3 hash | +5 | Non-browser HTTP clients |
-| Datacenter/hosting IP | +15 | AWS, GCP, Azure, DigitalOcean |
+## Signal categories
+
+<Accordions type="single">
+
+<Accordion title="Proof-of-Work timing">
+
+| Signal | Effect | Catches |
+|--------|--------|---------|
+| Solved in &lt; 100ms | +25 | GPU solvers, pre-computed answers |
+| Solved in 100-500ms | +10 | Fast but plausible hardware |
+| Solved in 1-15s | -10 | Normal browser performance |
+| Solved in &gt; 30s | +5 | Weak device or throttled bot |
+
+</Accordion>
+
+<Accordion title="Browser fingerprinting">
+
+| Signal | Effect | Catches |
+|--------|--------|---------|
+| Consistency &lt; 50% | +20 | Spoofed browser properties |
+| Consistency 50-80% | +10 | Partially inconsistent |
+| Consistency &gt; 90% | -10 | Stable, genuine browser |
+| High IP velocity | +15 to +25 | Bot farms recycling profiles |
+
+</Accordion>
+
+<Accordion title="Behavioral analysis">
+
+| Signal | Effect | Catches |
+|--------|--------|---------|
+| No mouse or keyboard | +20 | Headless browsers, scripts |
+| High entropy | -15 | Natural human movement |
+| Low entropy | +20 | Robotic movement |
+| `navigator.webdriver` | +40 | Selenium, Puppeteer, Playwright |
+
+<Callout type="warn" title="Mode-aware">
+  In **invisible** mode, low behavior is penalized lightly (+5) since collection is brief (~150ms). In **managed** mode, the user clicks a checkbox so absence of interaction is penalized heavily (+20).
+</Callout>
+
+</Accordion>
+
+<Accordion title="GeoIP intelligence">
+
+| Signal | Effect | Catches |
+|--------|--------|---------|
+| Datacenter IP | +15 | AWS, GCP, Azure, DigitalOcean |
 | VPN detected | +10 | Anonymous VPN exit nodes |
 | Proxy detected | +10 | Anonymous proxy services |
 | Blocked country | +30 | Per-site country blocklist |
 
+</Accordion>
+
+<Accordion title="Other signals">
+
+| Signal | Effect | Catches |
+|--------|--------|---------|
+| Missing JA3 hash | +5 | Non-browser HTTP clients |
+| Managed mode, no behavior | +15 | Headless without interaction |
+
+</Accordion>
+
+</Accordions>
+
 ## Default thresholds
 
-| Score range | Action | Meaning |
-|-------------|--------|---------|
-| 0-29 | **allow** | Issue token, zero friction |
-| 30-69 | **challenge** | Increase PoW difficulty |
-| 70-100 | **block** | Reject the request |
+<TypeTable type={{
+  allow: { type: 'score < 30', description: 'Issue token, zero friction' },
+  challenge: { type: 'score 30-69', description: 'Increase PoW difficulty' },
+  block: { type: 'score >= 70', description: 'Reject the request' },
+}} />
 
-All thresholds are configurable per site in the dashboard.
+All thresholds are configurable per site in the dashboard under **Site Settings** → **Risk Thresholds**.
 
-## Mode-aware scoring
+## Extending with plugins
 
-In **invisible mode**, behavior collection runs for ~150ms so low interaction is normal — penalized lightly (+5). In **managed mode**, the user clicks a checkbox so the server expects real interaction — absence is penalized heavily (+20).
+After the built-in engine runs, [plugins](/docs/features/plugins) execute in priority order. Each plugin can adjust the score by up to ±50 points and add custom anomalies.
+
+```typescript
+const myPlugin: RiskPlugin = {
+  name: 'ip-blocklist',
+  priority: 10,
+  async evaluate(ctx) {
+    const blocked = await db.isBlocked(ctx.ipAddress);
+    return blocked
+      ? { scoreAdjustment: 40, anomalies: ['ip_blocklisted'] }
+      : { scoreAdjustment: 0 };
+  },
+};
+```

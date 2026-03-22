@@ -3,18 +3,21 @@ title: Quickstart
 description: Get Janus running in 5 minutes with Docker Compose.
 ---
 
-## Prerequisites
+<Callout title="Prerequisites">
+  [Docker](https://docs.docker.com/get-docker/) and Docker Compose are required. Node.js 20+ is only needed for development from source.
+</Callout>
 
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-- Node.js 20+ (for development only)
+## Choose your setup
 
-## Option 1: Docker Compose (recommended)
+<Tabs items={["Docker Compose", "From source"]}>
+
+<Tab value="Docker Compose">
 
 ```bash
 # Download the compose file
 curl -O https://raw.githubusercontent.com/elliot736/janus/main/docker-compose.yml
 
-# Create environment file
+# Create environment file with generated secrets
 cat > .env << 'EOF'
 DB_PASSWORD=$(openssl rand -hex 32)
 HMAC_SECRET=$(openssl rand -hex 32)
@@ -31,10 +34,9 @@ docker compose up -d
 
 This starts 5 containers: Nginx (port 80), API, Dashboard, PostgreSQL, and Redis.
 
-- **Dashboard:** [http://localhost:3000](http://localhost:3000)
-- **API:** [http://localhost:3001](http://localhost:3001)
+</Tab>
 
-## Option 2: Development (from source)
+<Tab value="From source">
 
 ```bash
 git clone https://github.com/elliot736/janus.git
@@ -49,15 +51,49 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up postgres redis
 # Set up schema
 cd apps/api && npx drizzle-kit push && cd ../..
 
-# Seed test data
+# Seed test data (3 sites, API keys, 7 days of verification history)
 cd apps/api && npm run db:seed && cd ../..
 
 # Run everything
 npm run dev
 ```
 
+</Tab>
+
+</Tabs>
+
+Once running:
+
+| Service | URL |
+|---------|-----|
+| Dashboard | [http://localhost:3000](http://localhost:3000) |
+| API | [http://localhost:3001](http://localhost:3001) |
+| API Docs | [http://localhost:3001/docs](http://localhost:3001/docs) |
+
 ## Next steps
 
-1. [Create a site](/docs/getting-started/configuration) in the dashboard
-2. [Add the SDK](/docs/integration/react) to your frontend
-3. [Validate tokens](/docs/api-reference/siteverify) on your backend
+<Steps>
+
+<Step>
+### Create a site
+Sign in to the dashboard, go to **Sites** → **Add Site**, enter a name and domain. Save your site key and secret key.
+</Step>
+
+<Step>
+### Add the SDK
+Choose your framework and install the integration package.
+
+<Cards>
+  <Card title="React" href="/docs/integration/react" description="useJanus() hook and components" />
+  <Card title="Next.js" href="/docs/integration/nextjs" description="Client + server-side verification" />
+  <Card title="Express" href="/docs/integration/express" description="One-line middleware" />
+  <Card title="HTML" href="/docs/integration/html" description="Script tag integration" />
+</Cards>
+</Step>
+
+<Step>
+### Validate tokens
+Your backend calls [`/api/v1/siteverify`](/docs/api-reference/siteverify) with the token from the client. Done.
+</Step>
+
+</Steps>

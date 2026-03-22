@@ -7,7 +7,7 @@ export async function sha256(data: string): Promise<string> {
   const bytes = new Uint8Array(buffer);
   let hex = "";
   for (let i = 0; i < bytes.length; i++) {
-    hex += bytes[i].toString(16).padStart(2, "0");
+    hex += bytes[i]!.toString(16).padStart(2, "0");
   }
   return hex;
 }
@@ -27,14 +27,14 @@ export async function merkleRoot(leaves: string[]): Promise<string> {
   while (layer.length > 1) {
     const next: string[] = [];
     for (let i = 0; i < layer.length; i += 2) {
-      const left = layer[i];
-      const right = i + 1 < layer.length ? layer[i + 1] : layer[i];
+      const left = layer[i]!;
+      const right = i + 1 < layer.length ? layer[i + 1]! : left;
       next.push(await sha256(left + right));
     }
     layer = next;
   }
 
-  return layer[0];
+  return layer[0]!;
 }
 
 /**

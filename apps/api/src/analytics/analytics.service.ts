@@ -4,7 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { eq, and, gte, sql, count, desc } from 'drizzle-orm';
+import { eq, and, gte, sql, count, desc, or } from 'drizzle-orm';
 import { DATABASE_TOKEN, type Database } from '../db/db.provider';
 import { sites, verifications, challenges } from '../db/schema';
 
@@ -228,5 +228,61 @@ export class AnalyticsService {
       .limit(limit);
 
     return rows;
+  }
+
+  async deleteData(
+    siteId: string,
+    userId: string,
+    ip?: string,
+    fingerprint?: string,
+  ) {
+    await this.validateSiteOwnership(siteId, userId);
+
+    let deletedVerifications = 0;
+    let deletedChallenges = 0;
+
+    if (ip) {
+      const vResult = await this.db
+        .delete(verifications)
+        .where(
+          and(
+            eq(verifications.siteId, siteId),
+            eq(verifications.ipAddress, ip),
+          ),
+        )
+        .returning({ id: verifications.id });
+      deletedVerifications += vResult.length;
+
+      const cResult = await this.db
+        .delete(challenges)
+        .where(
+          and(
+            eq(challenges.siteId, siteId),
+            eq(challenges.ipAddress, ip),
+          ),
+        )
+        .returning({ id: challenges.id });
+      deletedChallenges += cResult.length;
+    }
+
+    if (fingerprint) {
+      const vResult = await this.db
+        .delete(verifications)
+        .where(
+          and(
+            eq(verifications.siteId, siteId),
+            eq(verifications.fingerprintHash, fingerprint),
+          ),
+        )
+        .returning({ id: verifications.id });
+      deletedVerifications += vResult.length;
+    }
+
+    return {
+      deleted: {
+        verifications: deletedVerifications,
+        challenges: deletedChallenges,
+      },
+    };
   }
 }

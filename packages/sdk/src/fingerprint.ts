@@ -106,7 +106,7 @@ async function getAudioFingerprint(): Promise<string> {
     // Build a string from the frequency data
     let result = "";
     for (let i = 0; i < data.length; i++) {
-      result += data[i].toFixed(2);
+      result += data[i]!.toFixed(2);
     }
     return result;
   } catch {

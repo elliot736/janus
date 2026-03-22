@@ -17,6 +17,7 @@ export interface SiteSettings {
     challenge: number;
     block: number;
   };
+  gdprMode?: boolean;
 }
 
 export const sites = pgTable('sites', {

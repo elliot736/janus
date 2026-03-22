@@ -174,6 +174,59 @@ Detection mode matters. In **invisible mode**, behavior collection runs for ~150
 
 ---
 
+## GDPR Compliance
+
+Janus can run in **GDPR mode**, which disables all personal data collection while still providing bot protection through proof-of-work challenges.
+
+### What GDPR mode changes
+
+| Feature | Standard Mode | GDPR Mode |
+|---------|--------------|-----------|
+| Proof-of-work challenges | Yes | Yes |
+| Browser fingerprinting | Yes | Disabled |
+| Behavioral tracking | Yes | Disabled |
+| Automation detection | Yes | Disabled |
+| IP storage | Full IP | Anonymized (last octet zeroed) |
+| Risk scoring | All signals | PoW timing only |
+
+### Enabling GDPR mode
+
+Toggle it per site in the dashboard under Site Settings, or set `gdprMode: true` in the site's settings via the API:
+
+```bash
+curl -X PUT https://your-janus.com/api/v1/sites/:id \
+  -H 'Content-Type: application/json' \
+  -H 'Cookie: ...' \
+  -d '{"settings": {"gdprMode": true}}'
+```
+
+When enabled, the SDK automatically skips fingerprinting and behavioral collection. The server uses only PoW solve time for risk scoring, and stores anonymized IPs (e.g., `1.2.3.0` instead of `1.2.3.45`).
+
+### Data retention
+
+Verification records and completed challenges are automatically deleted after a configurable retention period (default: 30 days). Set `DATA_RETENTION_DAYS` in your environment to change this. Cleanup runs daily at 2am UTC.
+
+### Data deletion
+
+Site owners can delete all stored data for a specific IP or fingerprint:
+
+```
+DELETE /api/v1/sites/:siteId/data?ip=1.2.3.4
+DELETE /api/v1/sites/:siteId/data?fingerprint=abc123
+```
+
+Returns the count of deleted records.
+
+### What Janus does not do
+
+- Does not set cookies on the visitor's browser
+- Does not use third-party tracking scripts
+- Does not send data to external services
+- Does not store raw behavioral signals (only aggregate scores)
+- Does not build user profiles across sites
+
+---
+
 ## Quick Start
 
 ### Prerequisites

@@ -27,6 +27,7 @@ export interface PowChallenge {
   challenge: string;
   difficulty: number;
   mode?: "invisible" | "managed";
+  gdprMode?: boolean;
 }
 
 export interface PowRequest {

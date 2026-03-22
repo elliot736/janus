@@ -46,6 +46,7 @@ export class ChallengeService {
     const settings = site.settings as Record<string, unknown> | null;
     const difficulty = (settings?.powDifficulty as number) ?? 4;
     const mode = (settings?.mode as string) ?? 'invisible';
+    const gdprMode = (settings?.gdprMode as boolean) ?? false;
     const nonce = randomBytes(16).toString('hex');
     const timestamp = Date.now().toString();
 
@@ -80,6 +81,7 @@ export class ChallengeService {
       difficulty,
       algorithm: 'SHA-256',
       mode,
+      ...(gdprMode ? { gdprMode: true } : {}),
       expiresAt: expiresAt.toISOString(),
     };
   }

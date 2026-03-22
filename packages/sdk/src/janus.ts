@@ -115,9 +115,53 @@ export class Janus {
       this.behaviorCollector.start();
     }
 
-    // Step 1 — request challenge & collect signals in parallel
-    const [challenge, fingerprint, detection] = await Promise.all([
-      this.requestChallenge(),
+    // Step 1 — request challenge
+    const challenge = await this.requestChallenge();
+
+    // GDPR mode: skip fingerprinting, automation detection, and behavior collection
+    if (challenge.gdprMode) {
+      const emptyFingerprint: FingerprintResult = {
+        hash: "",
+        entropy: 0,
+        components: {} as FingerprintResult["components"],
+      };
+      const emptyBehavior: BehaviorResult = {
+        totalEvents: 0,
+        mouseEvents: 0,
+        mouseCv: 0,
+        keyboardVariance: 0,
+        scrollEvents: 0,
+        touchEvents: 0,
+        hasSubPixel: false,
+        durationMs: 0,
+      };
+      const emptyDetection: DetectionResult = {
+        webdriver: false,
+        phantom: false,
+        selenium: false,
+        cdp: false,
+        headless: false,
+        markers: [],
+      };
+
+      const signalRoot = await computeSignalRoot(emptyFingerprint, emptyBehavior, emptyDetection);
+      const pow = await this.solvePoW(challenge, signalRoot);
+
+      const result = await this.submitVerification({
+        siteKey: this.config.siteKey,
+        pow: { ...pow, challengeId: challenge.challengeId },
+        fingerprint: emptyFingerprint,
+        behavior: emptyBehavior,
+        detection: emptyDetection,
+        signalRoot,
+        timestamp: Date.now(),
+      });
+
+      return result;
+    }
+
+    // Standard mode: collect signals in parallel
+    const [fingerprint, detection] = await Promise.all([
       collectFingerprint(),
       Promise.resolve(detectAutomation()),
     ]);

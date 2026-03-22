@@ -97,13 +97,17 @@ export class VerificationService {
     // 4. Mark challenge as solved
     await this.challengeService.markSolved(params.challengeId);
 
-    // 5. Compute fingerprint hash
-    const fingerprintHash = params.fingerprint
+    // 5. Check GDPR mode
+    const siteSettings = site.settings as Record<string, unknown> | null;
+    const gdprMode = (siteSettings?.gdprMode as boolean) ?? false;
+
+    // 6. Compute fingerprint hash (skip in GDPR mode)
+    const fingerprintHash = !gdprMode && params.fingerprint
       ? this.fingerprintService.computeHash(params.fingerprint)
       : undefined;
 
-    // 6. Check fingerprint consistency and velocity
-    const fingerprintAnalysis = fingerprintHash
+    // 7. Check fingerprint consistency and velocity (skip in GDPR mode)
+    const fingerprintAnalysis = !gdprMode && fingerprintHash
       ? await this.fingerprintService.analyze({
           fingerprintHash,
           ipAddress: params.ipAddress,
@@ -111,8 +115,8 @@ export class VerificationService {
         })
       : { anomalies: [], consistencyScore: 100 };
 
-    // 7. Score risk
-    const siteMode = (site.settings as Record<string, unknown> | null)?.mode as string | undefined;
+    // 8. Score risk
+    const siteMode = (siteSettings?.mode as string) ?? undefined;
     const riskResult = this.riskScoringService.score({
       solveTimeMs: params.solveTimeMs,
       behaviorData: params.behaviorData,
@@ -121,9 +125,10 @@ export class VerificationService {
       ipAddress: params.ipAddress,
       ja3Hash: challenge.ja3Hash,
       mode: siteMode,
+      gdprMode,
     });
 
-    // 8. Determine action based on risk thresholds
+    // 9. Determine action based on risk thresholds
     const thresholds = (site.settings as any)?.riskThresholds ?? {
       allow: 30,
       challenge: 60,
@@ -139,7 +144,7 @@ export class VerificationService {
       action = 'block';
     }
 
-    // 9. Issue token
+    // 10. Issue token
     const token = this.tokenService.issue({
       siteId: site.id,
       challengeId: params.challengeId,
@@ -149,7 +154,8 @@ export class VerificationService {
       action,
     });
 
-    // 10. Store verification record
+    // 11. Store verification record (anonymize IP in GDPR mode)
+    const storedIp = gdprMode ? this.anonymizeIp(params.ipAddress) : params.ipAddress;
     const [record] = await this.db
       .insert(verifications)
       .values({
@@ -162,7 +168,7 @@ export class VerificationService {
         behaviorScore: riskResult.behaviorScore ?? null,
         anomalies: riskResult.anomalies,
         powTimeMs: params.solveTimeMs ?? null,
-        ipAddress: params.ipAddress,
+        ipAddress: storedIp,
       })
       .returning();
 
@@ -178,6 +184,18 @@ export class VerificationService {
       riskScore: riskResult.score,
       expiresAt: token.expiresAt,
     };
+  }
+
+  private anonymizeIp(ip: string): string {
+    if (ip.includes(':')) {
+      // IPv6: zero out last 80 bits
+      const parts = ip.split(':');
+      return parts.slice(0, 3).join(':') + '::';
+    }
+    // IPv4: zero out last octet
+    const parts = ip.split('.');
+    parts[3] = '0';
+    return parts.join('.');
   }
 
   async siteVerify(params: SiteVerifyParams) {

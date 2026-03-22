@@ -1,9 +1,11 @@
 import {
   Controller,
   Get,
+  Delete,
   Param,
   Query,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Session } from '@thallesp/nestjs-better-auth';
 import { AnalyticsService } from './analytics.service';
@@ -30,6 +32,31 @@ export class VerificationLogsController {
       session.user.id,
       numPage,
       numPageSize,
+    );
+  }
+
+  @Delete(':siteId/data')
+  async deleteData(
+    @Session() session: { user: { id: string } },
+    @Param('siteId') siteId: string,
+    @Query('ip') ip?: string,
+    @Query('fingerprint') fingerprint?: string,
+  ) {
+    if (!session?.user) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
+    if (!ip && !fingerprint) {
+      throw new BadRequestException(
+        'At least one of "ip" or "fingerprint" query parameter is required',
+      );
+    }
+
+    return this.analyticsService.deleteData(
+      siteId,
+      session.user.id,
+      ip,
+      fingerprint,
     );
   }
 }

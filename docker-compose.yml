@@ -1,0 +1,79 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./packages/sdk/dist:/var/www/janus/sdk/dist:ro
+    depends_on:
+      - janus-api
+      - janus-dashboard
+    restart: unless-stopped
+
+  janus-api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    expose:
+      - "3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://janus:${DB_PASSWORD}@postgres:5432/janus
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      HMAC_SECRET: ${HMAC_SECRET}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      NODE_ENV: production
+    restart: unless-stopped
+
+  janus-dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+    expose:
+      - "3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost/api}
+      BETTER_AUTH_URL: http://janus-api:3001
+      NODE_ENV: production
+    depends_on:
+      - janus-api
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: janus
+      POSTGRES_USER: janus
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U janus"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

@@ -15,10 +15,22 @@ interface CheckLimitResult {
   retryAfterMs?: number;
 }
 
+/** Circuit breaker states */
+type CircuitState = 'closed' | 'open' | 'half-open';
+
 @Injectable()
 export class RateLimitService implements OnModuleDestroy {
   private readonly redis: Redis;
   private readonly logger = new Logger(RateLimitService.name);
+
+  // Circuit breaker state
+  private circuitState: CircuitState = 'closed';
+  private failureCount = 0;
+  private lastFailureTime = 0;
+
+  // Circuit breaker config
+  private readonly failureThreshold = 5;
+  private readonly resetTimeoutMs = 30_000; // 30 seconds in open state before trying half-open
 
   constructor(private readonly configService: ConfigService) {
     const redisUrl = this.configService.get<string>('REDIS_URL');
@@ -40,6 +52,12 @@ export class RateLimitService implements OnModuleDestroy {
    * on each check to maintain an accurate window.
    */
   async checkLimit(params: CheckLimitParams): Promise<CheckLimitResult> {
+    // Circuit breaker: if open, allow traffic through (degraded mode)
+    if (this.isCircuitOpen()) {
+      this.logger.warn('Circuit breaker open — allowing request without rate limit check');
+      return { allowed: true, remaining: params.limit };
+    }
+
     const { key, limit, windowMs } = params;
     const now = Date.now();
     const windowStart = now - windowMs;
@@ -60,6 +78,9 @@ export class RateLimitService implements OnModuleDestroy {
       pipeline.pexpire(key, windowMs);
 
       const results = await pipeline.exec();
+
+      // Success: reset circuit breaker
+      this.onSuccess();
 
       // zcard result is at index 1
       const currentCount = (results?.[1]?.[1] as number) ?? 0;
@@ -82,14 +103,59 @@ export class RateLimitService implements OnModuleDestroy {
         remaining: limit - currentCount - 1,
       };
     } catch (err) {
+      this.onFailure();
       this.logger.error('Redis rate limit check failed', err);
-      // Fail closed: deny the request if Redis is down
+
+      // If circuit just opened, allow traffic (degraded mode)
+      if (this.circuitState === 'open') {
+        return { allowed: true, remaining: params.limit };
+      }
+
+      // Still in closed/half-open: fail closed
       return {
         allowed: false,
         remaining: 0,
         retryAfterMs: 5000,
       };
     }
+  }
+
+  private isCircuitOpen(): boolean {
+    if (this.circuitState === 'open') {
+      // Check if reset timeout has elapsed → transition to half-open
+      if (Date.now() - this.lastFailureTime >= this.resetTimeoutMs) {
+        this.circuitState = 'half-open';
+        this.logger.log('Circuit breaker transitioning to half-open');
+        return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private onSuccess(): void {
+    if (this.circuitState === 'half-open') {
+      this.logger.log('Circuit breaker closed after successful probe');
+    }
+    this.circuitState = 'closed';
+    this.failureCount = 0;
+  }
+
+  private onFailure(): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+
+    if (this.failureCount >= this.failureThreshold) {
+      this.circuitState = 'open';
+      this.logger.warn(
+        `Circuit breaker opened after ${this.failureCount} consecutive failures — ` +
+          `rate limiting degraded for ${this.resetTimeoutMs / 1000}s`,
+      );
+    }
+  }
+
+  getCircuitState(): CircuitState {
+    return this.circuitState;
   }
 
   /**

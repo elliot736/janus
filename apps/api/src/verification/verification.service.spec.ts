@@ -18,6 +18,7 @@ describe('VerificationService', () => {
   let mockGeoIpService: any;
   let mockWebhooksService: any;
   let mockAdaptiveDifficulty: any;
+  let mockPluginRegistry: any;
 
   const fakeSite = {
     id: 'site-uuid-1',
@@ -142,6 +143,10 @@ describe('VerificationService', () => {
       recordOutcome: jest.fn(),
     };
 
+    mockPluginRegistry = {
+      execute: jest.fn().mockResolvedValue({ totalAdjustment: 0, anomalies: [] }),
+    };
+
     service = new VerificationService(
       mockDb,
       mockSitesService,
@@ -154,6 +159,7 @@ describe('VerificationService', () => {
       mockGeoIpService,
       mockWebhooksService,
       mockAdaptiveDifficulty,
+      mockPluginRegistry,
     );
   });
 

@@ -2,7 +2,7 @@
   <img src="https://img.shields.io/badge/status-beta-blue" alt="Status" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
   <img src="https://img.shields.io/badge/SDK_size-~5KB_gzipped-orange" alt="SDK Size" />
-  <img src="https://img.shields.io/badge/tests-118_passing-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-154_passing-brightgreen" alt="Tests" />
 </p>
 
 # Janus
@@ -69,6 +69,8 @@ The server scores each request from 0 (human) to 100 (bot) and returns a signed 
 - **Automatic cleanup** of expired challenges every 5 minutes
 - **Structured JSON logging** with correlation IDs for end-to-end request tracing
 - **Versioned SDK CDN paths** (`/sdk/v1/janus.js`) with immutable caching for pinned deployments
+- **Plugin system** for custom risk scoring logic with global and site-scoped plugins, priority ordering, and error isolation
+- **Adaptive PoW difficulty** that auto-increases challenge difficulty when a site is under attack
 
 ### Security
 
@@ -293,6 +295,90 @@ Requests from blocked countries receive a +30 risk score penalty, which in most 
 
 ---
 
+## Plugin System
+
+Janus includes a plugin system for extending the risk scoring engine with custom logic. Plugins run after the built-in scoring pipeline and can adjust the risk score based on your own data sources, business rules, or threat intelligence.
+
+### How plugins work
+
+Each plugin receives the full verification context (IP, country, fingerprint, behavior, current score, anomalies) and returns a score adjustment. Plugins are executed in priority order, and each plugin sees the updated score from the previous one.
+
+- **Global plugins** run on every verification across all sites
+- **Site-scoped plugins** run only for specific sites
+- Plugin adjustments are clamped to [-50, +50] per plugin
+- Plugin errors are caught and logged — they never block verification
+- Two built-in plugins ship by default: `rate-abuse-detector` and `time-of-day`
+
+### Writing a plugin
+
+```typescript
+import type { RiskPlugin } from './plugins/risk-plugin.interface';
+
+const ipBlocklistPlugin: RiskPlugin = {
+  name: 'ip-blocklist',
+  description: 'Check IP against internal blocklist',
+  priority: 10, // lower = runs first
+  async evaluate(ctx) {
+    const blocked = await myDatabase.isBlocked(ctx.ipAddress);
+    if (blocked) {
+      return { scoreAdjustment: 40, anomalies: ['ip_blocklisted'] };
+    }
+    return { scoreAdjustment: 0 };
+  },
+};
+```
+
+### Registering plugins
+
+```typescript
+// In a NestJS module or service
+import { PluginRegistryService } from './plugins';
+
+@Injectable()
+export class MyCustomPlugins implements OnModuleInit {
+  constructor(private readonly registry: PluginRegistryService) {}
+
+  onModuleInit() {
+    // Global: runs on all sites
+    this.registry.registerGlobal(ipBlocklistPlugin);
+
+    // Site-scoped: runs only for this site
+    this.registry.registerForSite('site-uuid', geoFencingPlugin);
+  }
+}
+```
+
+### Available context
+
+Plugins receive a `RiskPluginContext` with:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `siteId` | string | Site being verified |
+| `ipAddress` | string | Client IP |
+| `countryCode` | string \| null | GeoIP country code |
+| `isDatacenter` | boolean | Datacenter IP flag |
+| `isVpn` | boolean | VPN detected |
+| `isProxy` | boolean | Proxy detected |
+| `asn` | number \| null | ASN number |
+| `asnOrg` | string \| null | ASN organization |
+| `fingerprintHash` | string \| null | Browser fingerprint hash |
+| `solveTimeMs` | number \| null | PoW solve time |
+| `behaviorData` | object \| null | Raw behavioral signals |
+| `mode` | string \| null | Detection mode |
+| `ja3Hash` | string \| null | TLS fingerprint |
+| `currentScore` | number | Score before this plugin |
+| `currentAnomalies` | string[] | Anomalies before this plugin |
+
+### Built-in plugins
+
+| Plugin | Priority | What it does |
+|--------|----------|--------------|
+| `rate-abuse-detector` | 50 | Compounds penalty when datacenter IP + high score, or 3+ anomalies + high score |
+| `time-of-day` | 90 | +5 risk during off-peak hours (2am-6am UTC) |
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -456,7 +542,7 @@ Four GitHub Actions workflows handle the full lifecycle:
 
 | Workflow            | Trigger                 | Steps                                                                                    |
 | ------------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
-| **ci.yml**          | PR / push to main       | Type-check all packages, build, run 118 tests, check SDK size                            |
+| **ci.yml**          | PR / push to main       | Type-check all packages, build, run 154 tests, check SDK size                            |
 | **deploy.yml**      | Push to main            | Build Docker images, push to ECR, deploy to ECS, upload SDK to S3, invalidate CloudFront |
 | **sdk-publish.yml** | Tag `sdk-v*`            | Verify bundle < 10KB gzipped, publish to npm                                             |
 | **terraform.yml**   | Changes in `terraform/` | Plan on PR (comment on PR), apply on merge                                               |
@@ -534,6 +620,8 @@ janus/
 │   │       ├── metrics/        Prometheus counters
 │   │       ├── cleanup/        Expired challenge cron
 │   │       ├── geoip/          GeoIP lookups (MaxMind GeoLite2)
+│   │       ├── plugins/        Risk scoring plugin system
+│   │       ├── webhooks/       Webhook delivery service
 │   │       └── db/             Drizzle schema
 │   └── dashboard/          Next.js admin UI
 │       └── src/
@@ -574,7 +662,7 @@ janus/
 | CI/CD          | GitHub Actions, OIDC for AWS                  |
 | Monorepo       | Turborepo                                     |
 | GeoIP          | MaxMind GeoLite2 (self-hosted, GDPR-safe)     |
-| Testing        | Jest, 118 tests (API + Dashboard)             |
+| Testing        | Jest, 154 tests (API + Dashboard)             |
 
 ---
 
@@ -592,7 +680,7 @@ jns_api_xxxx            API key (site-scoped, stored as SHA-256 hash)
 
 ```bash
 cd apps/api
-npm test            # 92 API tests + 26 dashboard tests
+npm test            # 128 API tests + 26 dashboard tests
 npm run test:cov    # with coverage report
 ```
 

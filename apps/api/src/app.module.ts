@@ -14,6 +14,7 @@ import { CleanupModule } from './cleanup/cleanup.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { GeoIpModule } from './geoip/geoip.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { PluginsModule } from './plugins/plugins.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     MetricsModule,
     GeoIpModule,
     WebhooksModule,
+    PluginsModule,
   ],
 })
 export class AppModule {}

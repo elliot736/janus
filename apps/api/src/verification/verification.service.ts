@@ -17,6 +17,7 @@ import { MetricsService } from '../metrics/metrics.service';
 import { GeoIpService } from '../geoip/geoip.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 import { AdaptiveDifficultyService } from '../challenge/adaptive-difficulty.service';
+import { PluginRegistryService } from '../plugins/plugin-registry.service';
 
 interface VerifyParams {
   siteKey: string;
@@ -49,6 +50,7 @@ export class VerificationService {
     private readonly geoIpService: GeoIpService,
     private readonly webhooksService: WebhooksService,
     private readonly adaptiveDifficulty: AdaptiveDifficultyService,
+    private readonly pluginRegistry: PluginRegistryService,
   ) {}
 
   async verify(params: VerifyParams) {
@@ -156,7 +158,29 @@ export class VerificationService {
       blockedCountries,
     });
 
-    // 9. Determine action based on risk thresholds
+    // 9. Execute risk plugins
+    const pluginResult = await this.pluginRegistry.execute(site.id, {
+      siteId: site.id,
+      ipAddress: params.ipAddress,
+      countryCode: geoIp.countryCode,
+      isDatacenter: geoIp.isDatacenter,
+      isVpn: geoIp.isVpn,
+      isProxy: geoIp.isProxy,
+      asn: geoIp.asn,
+      asnOrg: geoIp.asnOrg,
+      fingerprintHash: fingerprintHash ?? null,
+      solveTimeMs: params.solveTimeMs ?? null,
+      behaviorData: params.behaviorData ?? null,
+      mode: siteMode ?? null,
+      ja3Hash: challenge.ja3Hash ?? null,
+      currentScore: riskResult.score,
+      currentAnomalies: riskResult.anomalies,
+    });
+
+    riskResult.score = Math.max(0, Math.min(100, riskResult.score + pluginResult.totalAdjustment));
+    riskResult.anomalies.push(...pluginResult.anomalies);
+
+    // 10. Determine action based on risk thresholds
     const thresholds = (site.settings as any)?.riskThresholds ?? {
       allow: 30,
       challenge: 60,

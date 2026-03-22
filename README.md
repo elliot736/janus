@@ -176,56 +176,56 @@ Detection mode matters. In **invisible mode**, behavior collection runs for ~150
 
 ## GDPR Compliance
 
-Janus can run in **GDPR mode**, which disables all personal data collection while still providing bot protection through proof-of-work challenges.
+Janus is privacy-first by design. It does not set cookies, does not use third-party scripts, and does not send data to external services. All data stays on your infrastructure.
 
-### What GDPR mode changes
+The only personal data Janus stores is **IP addresses** in the challenges and verifications tables. Browser fingerprints are stored as one-way SHA-256 hashes that cannot be reversed. Behavioral signals are reduced to aggregate scores (e.g., "mouse velocity variance: 0.6"), not raw event logs. Neither of these can identify an individual on their own.
 
-Fingerprint hashes and behavioral scores are not personal data. They are one-way hashes of aggregated browser properties and statistical summaries of interaction patterns. They cannot identify an individual. GDPR mode keeps all detection features active and only changes how IPs are stored.
+### GDPR mode
 
-| Feature | Standard Mode | GDPR Mode |
-|---------|--------------|-----------|
-| Proof-of-work challenges | Yes | Yes |
-| Browser fingerprinting | Yes | Yes (hashed, not personal data) |
-| Behavioral tracking | Yes | Yes (aggregated scores only) |
+For site owners who want stricter IP handling, Janus supports a per-site **GDPR mode** that anonymizes IPs before storage and enforces automatic data retention.
+
+| | Standard | GDPR Mode |
+|---|---|---|
+| Proof-of-work | Yes | Yes |
+| Fingerprinting | Yes (SHA-256 hashed) | Yes (SHA-256 hashed) |
+| Behavioral analysis | Yes (aggregate scores) | Yes (aggregate scores) |
 | Automation detection | Yes | Yes |
-| IP storage | Full IP | Anonymized (last octet zeroed) |
 | Risk scoring | All signals | All signals |
+| IP storage | Full IP | Anonymized (last octet zeroed) |
+| Data retention | Manual | Auto-delete after N days |
 
-### Enabling GDPR mode
-
-Toggle it per site in the dashboard under Site Settings, or set `gdprMode: true` in the site's settings via the API:
+Enable it per site in the dashboard settings, or via the API:
 
 ```bash
 curl -X PUT https://your-janus.com/api/v1/sites/:id \
   -H 'Content-Type: application/json' \
-  -H 'Cookie: ...' \
   -d '{"settings": {"gdprMode": true}}'
 ```
 
-When enabled, the server anonymizes IPs before storage (e.g., `1.2.3.0` instead of `1.2.3.45`). All detection features (fingerprinting, behavior, automation) remain active since they process hashed/aggregated data that cannot identify individuals.
+When enabled, IPs are truncated before storage (e.g., `192.168.1.0` instead of `192.168.1.47`). The full IP is still used during the request for challenge binding and rate limiting, but the stored verification record only contains the anonymized version.
 
 ### Data retention
 
-Verification records and completed challenges are automatically deleted after a configurable retention period (default: 30 days). Set `DATA_RETENTION_DAYS` in your environment to change this. Cleanup runs daily at 2am UTC.
+Verification records and completed challenges are automatically deleted after a configurable retention period. Set `DATA_RETENTION_DAYS` in your environment (default: 30). Cleanup runs daily at 2am UTC.
 
-### Data deletion
+### Right to erasure
 
-Site owners can delete all stored data for a specific IP or fingerprint:
+Site owners can delete all stored data for a specific IP or fingerprint hash:
 
 ```
-DELETE /api/v1/sites/:siteId/data?ip=1.2.3.4
+DELETE /api/v1/sites/:siteId/data?ip=192.168.1.47
 DELETE /api/v1/sites/:siteId/data?fingerprint=abc123
 ```
 
-Returns the count of deleted records.
+Returns the count of deleted verification and challenge records.
 
-### What Janus does not do
+### Privacy by design
 
-- Does not set cookies on the visitor's browser
-- Does not use third-party tracking scripts
-- Does not send data to external services
-- Does not store raw behavioral signals (only aggregate scores)
-- Does not build user profiles across sites
+- **No cookies.** The SDK is stateless and does not write to the visitor's browser storage.
+- **No third-party scripts.** Everything runs on your servers.
+- **No cross-site tracking.** Fingerprint hashes are site-scoped. The same browser produces different hashes on different sites.
+- **No raw signal storage.** Mouse coordinates, keyboard timings, and canvas pixel data are never stored. Only hashed fingerprints and aggregate behavior scores are persisted.
+- **No user profiles.** There is no concept of a "user" on the verification side. Each request is scored independently.
 
 ---
 

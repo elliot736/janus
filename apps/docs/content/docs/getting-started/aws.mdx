@@ -1,0 +1,130 @@
+---
+title: AWS Deployment
+description: Production deployment on AWS using Terraform with ECS Fargate, RDS, and ElastiCache.
+---
+
+The `terraform/` directory contains production-ready AWS infrastructure. Everything is provisioned with a single `terraform apply`.
+
+## Architecture
+
+| Component | Service | Staging | Production |
+|-----------|---------|---------|------------|
+| Compute | ECS Fargate | 0.5 vCPU, 1GB, 1 task | 1 vCPU, 2GB, 2-4 tasks |
+| Database | RDS PostgreSQL 16 | db.t4g.micro, single-AZ | db.t4g.small, Multi-AZ |
+| Cache | ElastiCache Redis 7 | cache.t4g.micro | cache.t4g.small |
+| Load Balancer | ALB | HTTPS, ACM cert | HTTPS, ACM cert |
+| CDN | CloudFront | SDK from S3 | SDK from S3 |
+| DNS | Route 53 | root, api, sdk subdomains | root, api, sdk subdomains |
+| Secrets | Secrets Manager | auto-generated | auto-generated |
+| Logs | CloudWatch | JSON structured | JSON structured |
+| Images | ECR | 10-image retention | 10-image retention |
+
+ECS services auto-scale between 1 and 4 tasks based on CPU and memory utilization.
+
+## Prerequisites
+
+- [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.5
+- AWS CLI configured with credentials
+- A registered domain in Route 53 (or delegate NS records)
+
+## Deploy
+
+```bash
+cd terraform
+terraform init
+
+# Staging
+terraform plan -var-file=environments/staging.tfvars
+terraform apply -var-file=environments/staging.tfvars
+
+# Production
+terraform plan -var-file=environments/production.tfvars
+terraform apply -var-file=environments/production.tfvars
+```
+
+Secrets (HMAC, JWT, cookie, auth) are auto-generated on first apply and stored in AWS Secrets Manager. They're injected into ECS task definitions as environment variables.
+
+## Environment files
+
+### staging.tfvars
+
+```hcl
+environment       = "staging"
+domain            = "staging.janus.example.com"
+api_cpu           = 512
+api_memory        = 1024
+api_desired_count = 1
+db_instance_class = "db.t4g.micro"
+db_multi_az       = false
+redis_node_type   = "cache.t4g.micro"
+```
+
+### production.tfvars
+
+```hcl
+environment       = "production"
+domain            = "janus.example.com"
+api_cpu           = 1024
+api_memory        = 2048
+api_desired_count = 2
+db_instance_class = "db.t4g.small"
+db_multi_az       = true
+redis_node_type   = "cache.t4g.small"
+```
+
+## Terraform resources
+
+| File | Resources |
+|------|-----------|
+| `main.tf` | Provider, VPC, subnets |
+| `ecs.tf` | ECS cluster, task definitions, services, auto-scaling |
+| `rds.tf` | PostgreSQL RDS instance, subnet group, parameter group |
+| `elasticache.tf` | Redis cluster, subnet group |
+| `alb.tf` | Application Load Balancer, target groups, listeners |
+| `cloudfront.tf` | CDN distribution for SDK delivery |
+| `route53.tf` | DNS records (root, api, sdk subdomains) |
+| `acm.tf` | SSL/TLS certificates |
+| `secrets.tf` | Secrets Manager for auto-generated secrets |
+| `security-groups.tf` | VPC security groups |
+| `outputs.tf` | ALB DNS, CloudFront URL, RDS endpoint |
+
+## CI/CD integration
+
+The `deploy.yml` GitHub Actions workflow handles deployment automatically:
+
+1. Builds Docker images for API and Dashboard
+2. Pushes to ECR
+3. Updates ECS task definitions
+4. Uploads SDK to S3
+5. Invalidates CloudFront cache
+
+AWS authentication uses OIDC with short-lived credentials — no long-lived access keys. Production deploys require manual approval via GitHub Environments.
+
+## Monitoring
+
+- **Health checks**: ALB health checks hit `/health` (liveness) and `/ready` (DB + Redis connectivity)
+- **Logs**: JSON structured logs in CloudWatch, queryable with Insights
+- **Metrics**: Prometheus endpoint at `/metrics`, scrapeable by CloudWatch agent or external Prometheus
+- **Alerts**: Configure CloudWatch Alarms on ECS CPU/memory, RDS connections, and Redis evictions
+
+## Cost estimate
+
+| Component | Staging (monthly) | Production (monthly) |
+|-----------|-------------------|---------------------|
+| ECS Fargate | ~$15 | ~$60 |
+| RDS | ~$15 | ~$30 |
+| ElastiCache | ~$12 | ~$25 |
+| ALB | ~$16 | ~$16 |
+| CloudFront | ~$1 | ~$5 |
+| Route 53 | ~$1 | ~$1 |
+| **Total** | **~$60** | **~$137** |
+
+Costs vary by region and traffic. These estimates assume us-east-1 with moderate traffic.
+
+## Destroying infrastructure
+
+```bash
+terraform destroy -var-file=environments/staging.tfvars
+```
+
+This removes all resources including the database. Make sure to export any data before destroying.

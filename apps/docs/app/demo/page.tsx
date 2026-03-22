@@ -4,12 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Shield } from "lucide-react";
 
-interface LogEntry {
-  id: number;
-  ts: string;
-  type: "info" | "success" | "error" | "signal";
-  msg: string;
-}
+interface LogEntry { id: number; ts: string; type: "info" | "success" | "error" | "signal"; msg: string; }
 
 const SIGNALS = [
   { delay: 100, type: "info" as const, msg: "Requesting PoW challenge..." },
@@ -49,7 +44,6 @@ export default function DemoPage() {
 
   const run = (mode: "human" | "bot") => {
     setRunning(true); setResult(null); setLogs([]); id.current = 0;
-
     const sigs = mode === "bot"
       ? SIGNALS.map((s) => {
           if (s.msg.includes("mouse:")) return { ...s, msg: "  mouse: 0 events, CV 0.00" };
@@ -63,87 +57,78 @@ export default function DemoPage() {
           return s;
         })
       : SIGNALS;
-
     const res = mode === "bot"
       ? { score: 87, action: "block", anomalies: ["datacenter_ip", "pow_solve_too_fast", "no_mouse_movement", "headless_detected"] }
       : { score: 15, action: "allow", anomalies: [] as string[] };
-
     sigs.forEach(({ delay, type, msg }) => setTimeout(() => log(type, msg), delay));
-
     setTimeout(() => {
       setResult(res);
-      if (res.action === "allow") {
-        log("success", `→ score ${res.score} — allowed`);
-        log("success", "  token: jns_tok_a8f2...c41d (5m TTL)");
-      } else {
-        log("error", `→ score ${res.score} — blocked`);
-        log("error", `  anomalies: ${res.anomalies.join(", ")}`);
-      }
+      if (res.action === "allow") { log("success", `→ score ${res.score} — allowed`); log("success", "  token: jns_tok_a8f2...c41d (5m TTL)"); }
+      else { log("error", `→ score ${res.score} — blocked`); log("error", `  anomalies: ${res.anomalies.join(", ")}`); }
       setRunning(false);
     }, 4800);
   };
 
   const color = (t: LogEntry["type"]) =>
-    t === "success" ? "text-emerald-400" : t === "error" ? "text-red-400" : t === "signal" ? "text-[#d4a254]" : "text-[#666]";
+    t === "success" ? "text-emerald-500" : t === "error" ? "text-red-500" : t === "signal" ? "text-[var(--j-accent)]" : "text-[var(--j-text-tertiary)]";
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#ededed]">
-      <nav className="border-b border-[#1a1a1a]">
+    <div className="min-h-screen" style={{ background: 'var(--j-bg)', color: 'var(--j-text)' }}>
+      <nav style={{ borderBottom: '1px solid var(--j-border)' }}>
         <div className="mx-auto max-w-[980px] flex items-center justify-between px-6 h-14">
           <Link href="/" className="flex items-center gap-2">
-            <Shield size={18} className="text-[#d4a254]" />
+            <Shield size={18} style={{ color: 'var(--j-accent)' }} />
             <span className="font-semibold text-[15px]">Janus</span>
           </Link>
           <div className="flex items-center gap-5">
-            <Link href="/docs" className="text-[13px] text-[#888] hover:text-[#ededed] transition-colors">Docs</Link>
-            <span className="text-[13px] text-[#ededed]">Demo</span>
+            <Link href="/docs" className="text-[13px] transition-colors" style={{ color: 'var(--j-text-secondary)' }}>Docs</Link>
+            <span className="text-[13px]">Demo</span>
           </div>
         </div>
       </nav>
 
       <div className="mx-auto max-w-[980px] px-6 py-16">
         <h1 className="text-[28px] font-bold tracking-[-0.02em]">Demo</h1>
-        <p className="mt-2 text-[14px] text-[#666]">Client-side simulation. No real API calls.</p>
+        <p className="mt-2 text-[14px]" style={{ color: 'var(--j-text-tertiary)' }}>Client-side simulation. No real API calls.</p>
 
         <div className="mt-8 flex gap-3">
-          <button onClick={() => run("human")} disabled={running} className="h-8 px-3 rounded-md text-[13px] font-medium bg-[#1a1a1a] text-[#ededed] border border-[#2a2a2a] hover:border-[#444] disabled:opacity-40 transition-colors">
+          <button onClick={() => run("human")} disabled={running} className="h-8 px-3 rounded-md text-[13px] font-medium disabled:opacity-40 transition-colors" style={{ backgroundColor: 'var(--j-bg-code)', border: '1px solid var(--j-border)' }}>
             Human
           </button>
-          <button onClick={() => run("bot")} disabled={running} className="h-8 px-3 rounded-md text-[13px] font-medium bg-[#1a1a1a] text-[#ededed] border border-[#2a2a2a] hover:border-[#444] disabled:opacity-40 transition-colors">
+          <button onClick={() => run("bot")} disabled={running} className="h-8 px-3 rounded-md text-[13px] font-medium disabled:opacity-40 transition-colors" style={{ backgroundColor: 'var(--j-bg-code)', border: '1px solid var(--j-border)' }}>
             Bot
           </button>
         </div>
 
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-px bg-[#1a1a1a] rounded-md overflow-hidden border border-[#1a1a1a]">
-          {/* Widget */}
-          <div className="bg-[#0a0a0a] p-6">
-            <p className="text-[11px] text-[#555] uppercase tracking-wider font-medium mb-6">Client</p>
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-px rounded-md overflow-hidden" style={{ backgroundColor: 'var(--j-border)', border: '1px solid var(--j-border)' }}>
+          <div className="p-6" style={{ background: 'var(--j-bg)' }}>
+            <p className="text-[11px] uppercase tracking-wider font-medium mb-6" style={{ color: 'var(--j-text-tertiary)' }}>Client</p>
             <div className="flex items-center justify-center min-h-[200px]">
               {!running && !result && (
-                <div className="flex items-center gap-3 border border-[#2a2a2a] rounded-md px-4 py-2.5">
-                  <div className="h-5 w-5 rounded-sm border-2 border-[#333]" />
-                  <span className="text-[13px] text-[#888]">I&apos;m not a robot</span>
-                  <span className="text-[10px] text-[#555] ml-3">Janus</span>
+                <div className="flex items-center gap-3 rounded-md px-4 py-2.5" style={{ border: '1px solid var(--j-border)' }}>
+                  <div className="h-5 w-5 rounded-sm" style={{ border: '2px solid var(--j-text-muted)' }} />
+                  <span className="text-[13px]" style={{ color: 'var(--j-text-secondary)' }}>I&apos;m not a robot</span>
+                  <span className="text-[10px] ml-3" style={{ color: 'var(--j-text-tertiary)' }}>Janus</span>
                 </div>
               )}
               {running && (
-                <div className="flex items-center gap-3 border border-[#2a2a2a] rounded-md px-4 py-2.5">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#d4a254] border-t-transparent" />
-                  <span className="text-[13px] text-[#888]">Verifying</span>
+                <div className="flex items-center gap-3 rounded-md px-4 py-2.5" style={{ border: '1px solid var(--j-border)' }}>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: 'var(--j-accent)', borderTopColor: 'transparent' }} />
+                  <span className="text-[13px]" style={{ color: 'var(--j-text-secondary)' }}>Verifying</span>
                 </div>
               )}
               {!running && result && (
                 <div className="text-center">
-                  <div className="flex items-center gap-3 border rounded-md px-4 py-2.5" style={{ borderColor: result.action === "allow" ? "#22c55e33" : "#ef444433" }}>
+                  <div className="flex items-center gap-3 rounded-md px-4 py-2.5" style={{ borderWidth: 1, borderStyle: 'solid', borderColor: result.action === "allow" ? "#22c55e44" : "#ef444444" }}>
                     <span className="text-[13px]" style={{ color: result.action === "allow" ? "#22c55e" : "#ef4444" }}>
                       {result.action === "allow" ? "Verified" : "Blocked"}
                     </span>
-                    <span className="text-[13px] text-[#555]">score {result.score}</span>
+                    <span className="text-[13px]" style={{ color: 'var(--j-text-tertiary)' }}>score {result.score}</span>
                   </div>
                   {result.anomalies.length > 0 && (
                     <div className="mt-3 flex flex-wrap justify-center gap-1">
                       {result.anomalies.map((a) => (
-                        <code key={a} className="text-[11px] text-red-400 bg-red-400/5 border border-red-400/10 rounded px-1.5 py-0.5">{a}</code>
+                        <code key={a} className="text-[11px] text-red-500 bg-red-500/5 border border-red-500/10 rounded px-1.5 py-0.5">{a}</code>
                       ))}
                     </div>
                   )}
@@ -152,23 +137,22 @@ export default function DemoPage() {
             </div>
           </div>
 
-          {/* Log */}
-          <div className="bg-[#0a0a0a]">
-            <div className="flex items-center justify-between px-4 py-2 border-b border-[#1a1a1a]">
-              <p className="text-[11px] text-[#555] uppercase tracking-wider font-medium">Server</p>
-              {running && <span className="h-1.5 w-1.5 rounded-full bg-[#d4a254] animate-pulse" />}
+          <div style={{ background: 'var(--j-bg)' }}>
+            <div className="flex items-center justify-between px-4 py-2" style={{ borderBottom: '1px solid var(--j-border)' }}>
+              <p className="text-[11px] uppercase tracking-wider font-medium" style={{ color: 'var(--j-text-tertiary)' }}>Server</p>
+              {running && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--j-accent)' }} />}
             </div>
-            <div ref={ref} className="h-[230px] overflow-y-auto p-4 font-mono text-[12px] leading-[1.7]">
-              {logs.length === 0 && <span className="text-[#333]">waiting...</span>}
+            <div ref={ref} className="h-[230px] overflow-y-auto p-4 font-mono text-[12px] leading-[1.7]" style={{ backgroundColor: 'var(--j-bg-code)' }}>
+              {logs.length === 0 && <span style={{ color: 'var(--j-text-muted)' }}>waiting...</span>}
               {logs.map((l) => (
-                <div key={l.id}><span className="text-[#333] mr-2">{l.ts}</span><span className={color(l.type)}>{l.msg}</span></div>
+                <div key={l.id}><span className="mr-2" style={{ color: 'var(--j-text-muted)' }}>{l.ts}</span><span className={color(l.type)}>{l.msg}</span></div>
               ))}
             </div>
           </div>
         </div>
 
-        <p className="mt-8 text-[12px] text-[#444]">
-          In production, all scoring happens server-side. <Link href="/docs/getting-started/quickstart" className="text-[#d4a254] hover:underline">Deploy yours</Link>.
+        <p className="mt-8 text-[12px]" style={{ color: 'var(--j-text-tertiary)' }}>
+          In production, all scoring happens server-side. <Link href="/docs/getting-started/quickstart" className="hover:underline" style={{ color: 'var(--j-accent)' }}>Deploy yours</Link>.
         </p>
       </div>
     </div>

@@ -6,10 +6,11 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { LoadingState } from "@/components/loading";
 import { ErrorState, EmptyState } from "@/components/error-state";
+import { DonutChart } from "@/components/donut-chart";
+import { RiskGauge } from "@/components/risk-gauge";
+import { AnomalyBadge } from "@/components/anomaly-badge";
 import { apiGet } from "@/lib/api";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -18,6 +19,8 @@ import {
   BarChart,
   Bar,
   Cell,
+  Area,
+  AreaChart,
 } from "recharts";
 
 interface RequestsPerDay {
@@ -28,6 +31,13 @@ interface RequestsPerDay {
 interface RiskBucket {
   bucket: string;
   count: number;
+}
+
+interface TopIp {
+  ipAddress: string;
+  count: number;
+  avgRiskScore: number;
+  blockCount: number;
 }
 
 interface AnalyticsSummary {
@@ -51,6 +61,7 @@ interface AnalyticsData {
   summary: AnalyticsSummary;
   timeline: RequestsPerDay[];
   riskDistribution: RiskBucket[];
+  topIps: TopIp[];
 }
 
 const BUCKET_COLORS: Record<string, string> = {
@@ -64,6 +75,13 @@ const BUCKET_COLORS: Record<string, string> = {
 function bucketLabel(bucket: string): string {
   return bucket.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+const tooltipStyle = {
+  backgroundColor: "#18181b",
+  border: "1px solid #27272a",
+  borderRadius: "8px",
+  fontSize: "12px",
+};
 
 export default function SiteAnalyticsPage() {
   const params = useParams();
@@ -83,9 +101,15 @@ export default function SiteAnalyticsPage() {
       apiGet<AnalyticsSummary>(`/api/v1/analytics/${siteId}/summary?days=${days}`),
       apiGet<RequestsPerDay[]>(`/api/v1/analytics/${siteId}/requests-per-day?days=${days}`),
       apiGet<RiskBucket[]>(`/api/v1/analytics/${siteId}/risk-distribution?days=${days}`),
+      apiGet<TopIp[]>(`/api/v1/analytics/${siteId}/top-ips?days=${days}&limit=5`),
     ])
-      .then(([summary, timeline, riskDistribution]) =>
-        setData({ summary, timeline: timeline ?? [], riskDistribution: riskDistribution ?? [] })
+      .then(([summary, timeline, riskDistribution, topIps]) =>
+        setData({
+          summary,
+          timeline: timeline ?? [],
+          riskDistribution: riskDistribution ?? [],
+          topIps: topIps ?? [],
+        })
       )
       .catch((err) => setError(err.message || "Failed to load analytics"))
       .finally(() => setLoading(false));
@@ -136,8 +160,8 @@ export default function SiteAnalyticsPage() {
 
       {!loading && !error && data && (
         <>
-          {/* Summary stats */}
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-4">
+          {/* Summary stats row */}
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">Total Verifications</p>
               <p className="mt-1 text-2xl font-semibold text-white">
@@ -164,27 +188,81 @@ export default function SiteAnalyticsPage() {
             </div>
           </div>
 
-          {/* Requests over time */}
+          {/* Donut + Gauge row */}
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-6 flex items-center justify-center">
+              <DonutChart
+                segments={[
+                  { label: "Allowed", value: data.summary.verifications.allowCount, color: "#22c55e" },
+                  { label: "Challenged", value: data.summary.verifications.challengeCount, color: "#eab308" },
+                  { label: "Blocked", value: data.summary.verifications.blockCount, color: "#ef4444" },
+                ]}
+                centerValue={
+                  data.summary.verifications.totalVerifications > 0
+                    ? `${Math.round(
+                        ((data.summary.verifications.totalVerifications - data.summary.verifications.blockCount) /
+                          data.summary.verifications.totalVerifications) *
+                          100
+                      )}%`
+                    : "—"
+                }
+                centerLabel="human"
+                size={160}
+                strokeWidth={20}
+              />
+            </div>
+            <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-6 flex items-center justify-center">
+              <RiskGauge
+                score={data.summary.verifications.avgRiskScore}
+                label="Average risk score"
+              />
+            </div>
+            {/* Top IPs */}
+            <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-6">
+              <h2 className="text-sm font-medium text-zinc-400 mb-3">Top IPs</h2>
+              {data.topIps.length > 0 ? (
+                <div className="space-y-2">
+                  {data.topIps.map((ip, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <span className="text-sm font-mono text-zinc-300 truncate">{ip.ipAddress}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-zinc-500">{ip.count} req</span>
+                        {ip.blockCount > 0 && (
+                          <span className="text-[10px] rounded bg-red-950 text-red-400 px-1.5 py-0.5">
+                            {ip.blockCount} blocked
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full text-zinc-500 text-sm">
+                  No IP data for this period.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Requests over time (area chart) */}
           <div className="mt-6 rounded-lg border border-zinc-800 bg-zinc-950 p-6">
             <h2 className="text-sm font-medium text-zinc-400">Requests Over Time</h2>
-            <div className="mt-4 h-80">
+            <div className="mt-4 h-72">
               {data.timeline.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.timeline}>
+                  <AreaChart data={data.timeline}>
+                    <defs>
+                      <linearGradient id="colorArea" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#ffffff" stopOpacity={0.15} />
+                        <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis dataKey="date" stroke="#52525b" fontSize={12} tickLine={false} />
-                    <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#18181b",
-                        border: "1px solid #27272a",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                      }}
-                      labelStyle={{ color: "#a1a1aa" }}
-                    />
-                    <Line type="monotone" dataKey="count" stroke="#ffffff" strokeWidth={2} dot={false} name="Requests" />
-                  </LineChart>
+                    <XAxis dataKey="date" stroke="#52525b" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#a1a1aa" }} />
+                    <Area type="monotone" dataKey="count" stroke="#ffffff" strokeWidth={2} fill="url(#colorArea)" name="Requests" />
+                  </AreaChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="flex items-center justify-center h-full text-zinc-500 text-sm">
@@ -197,22 +275,14 @@ export default function SiteAnalyticsPage() {
           {/* Risk distribution */}
           <div className="mt-6 rounded-lg border border-zinc-800 bg-zinc-950 p-6">
             <h2 className="text-sm font-medium text-zinc-400">Risk Score Distribution</h2>
-            <div className="mt-4 h-64">
+            <div className="mt-4 h-56">
               {data.riskDistribution.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.riskDistribution.map((b) => ({ ...b, label: bucketLabel(b.bucket) }))}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis dataKey="label" stroke="#52525b" fontSize={12} tickLine={false} />
-                    <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#18181b",
-                        border: "1px solid #27272a",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                      }}
-                      labelStyle={{ color: "#a1a1aa" }}
-                    />
+                    <XAxis dataKey="label" stroke="#52525b" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#a1a1aa" }} />
                     <Bar dataKey="count" name="Requests" radius={[4, 4, 0, 0]}>
                       {data.riskDistribution.map((entry, index) => (
                         <Cell key={index} fill={BUCKET_COLORS[entry.bucket] ?? "#71717a"} />

@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Globe,
-  Key,
   Settings,
   LogOut,
   Shield,
@@ -33,10 +32,18 @@ export function Sidebar() {
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-zinc-800 bg-zinc-950">
       {/* Logo */}
-      <div className="flex h-14 items-center gap-2 border-b border-zinc-800 px-5">
-        <Shield className="h-5 w-5 text-white" />
-        <span className="text-lg font-semibold text-white tracking-tight">
-          Janus
+      <div className="flex h-14 items-center justify-between border-b border-zinc-800 px-5">
+        <div className="flex items-center gap-2.5">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-md bg-white/10 blur-sm" />
+            <Shield className="relative h-5 w-5 text-white" />
+          </div>
+          <span className="text-lg font-semibold text-white tracking-tight">
+            Janus
+          </span>
+        </div>
+        <span className="rounded-md bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
+          v0.1
         </span>
       </div>
 
@@ -53,13 +60,13 @@ export function Sidebar() {
               key={item.name}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
                 isActive
-                  ? "bg-zinc-800 text-white"
-                  : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+                  ? "bg-zinc-800/80 text-white shadow-sm"
+                  : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
               )}
             >
-              <item.icon className="h-4 w-4" />
+              <item.icon className={cn("h-4 w-4", isActive && "text-white")} />
               {item.name}
             </Link>
           );
@@ -69,13 +76,18 @@ export function Sidebar() {
       {/* User */}
       <div className="border-t border-zinc-800 p-3">
         <div className="flex items-center justify-between rounded-md px-3 py-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-white">
-              {session?.user?.name || "User"}
-            </p>
-            <p className="truncate text-xs text-zinc-500">
-              {session?.user?.email || ""}
-            </p>
+          <div className="min-w-0 flex items-center gap-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-medium text-zinc-300">
+              {(session?.user?.name || "U").charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-white">
+                {session?.user?.name || "User"}
+              </p>
+              <p className="truncate text-xs text-zinc-500">
+                {session?.user?.email || ""}
+              </p>
+            </div>
           </div>
           <button
             onClick={handleSignOut}

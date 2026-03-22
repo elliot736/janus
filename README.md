@@ -180,14 +180,16 @@ Janus can run in **GDPR mode**, which disables all personal data collection whil
 
 ### What GDPR mode changes
 
+Fingerprint hashes and behavioral scores are not personal data. They are one-way hashes of aggregated browser properties and statistical summaries of interaction patterns. They cannot identify an individual. GDPR mode keeps all detection features active and only changes how IPs are stored.
+
 | Feature | Standard Mode | GDPR Mode |
 |---------|--------------|-----------|
 | Proof-of-work challenges | Yes | Yes |
-| Browser fingerprinting | Yes | Disabled |
-| Behavioral tracking | Yes | Disabled |
-| Automation detection | Yes | Disabled |
+| Browser fingerprinting | Yes | Yes (hashed, not personal data) |
+| Behavioral tracking | Yes | Yes (aggregated scores only) |
+| Automation detection | Yes | Yes |
 | IP storage | Full IP | Anonymized (last octet zeroed) |
-| Risk scoring | All signals | PoW timing only |
+| Risk scoring | All signals | All signals |
 
 ### Enabling GDPR mode
 
@@ -200,7 +202,7 @@ curl -X PUT https://your-janus.com/api/v1/sites/:id \
   -d '{"settings": {"gdprMode": true}}'
 ```
 
-When enabled, the SDK automatically skips fingerprinting and behavioral collection. The server uses only PoW solve time for risk scoring, and stores anonymized IPs (e.g., `1.2.3.0` instead of `1.2.3.45`).
+When enabled, the server anonymizes IPs before storage (e.g., `1.2.3.0` instead of `1.2.3.45`). All detection features (fingerprinting, behavior, automation) remain active since they process hashed/aggregated data that cannot identify individuals.
 
 ### Data retention
 

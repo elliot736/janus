@@ -101,13 +101,15 @@ export class VerificationService {
     const siteSettings = site.settings as Record<string, unknown> | null;
     const gdprMode = (siteSettings?.gdprMode as boolean) ?? false;
 
-    // 6. Compute fingerprint hash (skip in GDPR mode)
-    const fingerprintHash = !gdprMode && params.fingerprint
+    // 6. Compute fingerprint hash
+    // Fingerprint hashes are not personal data (they're one-way hashes of
+    // aggregated browser properties), so they run in both standard and GDPR mode.
+    const fingerprintHash = params.fingerprint
       ? this.fingerprintService.computeHash(params.fingerprint)
       : undefined;
 
-    // 7. Check fingerprint consistency and velocity (skip in GDPR mode)
-    const fingerprintAnalysis = !gdprMode && fingerprintHash
+    // 7. Check fingerprint consistency and velocity
+    const fingerprintAnalysis = fingerprintHash
       ? await this.fingerprintService.analyze({
           fingerprintHash,
           ipAddress: params.ipAddress,
@@ -115,7 +117,7 @@ export class VerificationService {
         })
       : { anomalies: [], consistencyScore: 100 };
 
-    // 8. Score risk
+    // 8. Score risk (all signals used in both modes)
     const siteMode = (siteSettings?.mode as string) ?? undefined;
     const riskResult = this.riskScoringService.score({
       solveTimeMs: params.solveTimeMs,
@@ -125,7 +127,6 @@ export class VerificationService {
       ipAddress: params.ipAddress,
       ja3Hash: challenge.ja3Hash,
       mode: siteMode,
-      gdprMode,
     });
 
     // 9. Determine action based on risk thresholds

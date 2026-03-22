@@ -8,7 +8,6 @@ interface ScoreParams {
   ipAddress: string;
   ja3Hash?: string | null;
   mode?: string;
-  gdprMode?: boolean;
 }
 
 interface ScoreResult {
@@ -28,26 +27,6 @@ export class RiskScoringService {
     let score = 50;
     const anomalies: string[] = [...params.fingerprintAnomalies];
     let behaviorScore: number | undefined;
-
-    // --- GDPR mode: only use PoW timing for scoring ---
-    if (params.gdprMode) {
-      if (params.solveTimeMs !== undefined) {
-        if (params.solveTimeMs < 100) {
-          score += 25;
-          anomalies.push('pow_solve_too_fast');
-        } else if (params.solveTimeMs < 500) {
-          score += 10;
-          anomalies.push('pow_solve_fast');
-        } else if (params.solveTimeMs > 30_000) {
-          score += 5;
-          anomalies.push('pow_solve_slow');
-        } else if (params.solveTimeMs >= 1000 && params.solveTimeMs <= 15_000) {
-          score -= 10;
-        }
-      }
-      score = Math.max(0, Math.min(100, score));
-      return { score, anomalies };
-    }
 
     // --- PoW solve time analysis ---
     if (params.solveTimeMs !== undefined) {

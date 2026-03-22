@@ -1,3 +1,41 @@
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
+
+:root {
+  --accent: #d4a254;
+  --accent-light: #e4bb74;
+  --accent-dark: #b8873a;
+  --accent-muted: rgba(212, 162, 84, 0.15);
+  --accent-border: rgba(212, 162, 84, 0.25);
+}
+
+/* Override fumadocs accent */
+:root, .dark {
+  --fd-primary: 39 63% 58%;
+  --fd-ring: 39 63% 58%;
+}
+
+/* Glow utility */
+.accent-glow {
+  box-shadow: 0 0 60px rgba(212, 162, 84, 0.08), 0 0 120px rgba(212, 162, 84, 0.04);
+}
+
+.accent-glow-sm {
+  box-shadow: 0 0 30px rgba(212, 162, 84, 0.1);
+}
+
+/* Hero gradient mesh */
+.hero-gradient {
+  background:
+    radial-gradient(ellipse 50% 40% at 50% 0%, rgba(212, 162, 84, 0.08) 0%, transparent 100%),
+    radial-gradient(ellipse 40% 30% at 80% 20%, rgba(212, 162, 84, 0.04) 0%, transparent 100%);
+}
+
+/* Subtle line effect */
+.grid-pattern {
+  background-image:
+    linear-gradient(rgba(212, 162, 84, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(212, 162, 84, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}

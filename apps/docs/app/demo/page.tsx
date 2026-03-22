@@ -31,19 +31,8 @@ const DEMO_SIGNALS = [
   { delay: 4400, type: "info" as const, message: "GeoIP: US, residential, no VPN" },
 ];
 
-const DEMO_RESULT_HUMAN = {
-  delay: 4800,
-  score: 15,
-  action: "allow",
-  anomalies: [],
-};
-
-const DEMO_RESULT_BOT = {
-  delay: 4800,
-  score: 87,
-  action: "block",
-  anomalies: ["datacenter_ip", "pow_solve_too_fast", "no_mouse_movement", "headless_detected"],
-};
+const DEMO_RESULT_HUMAN = { delay: 4800, score: 15, action: "allow", anomalies: [] as string[] };
+const DEMO_RESULT_BOT = { delay: 4800, score: 87, action: "block", anomalies: ["datacenter_ip", "pow_solve_too_fast", "no_mouse_movement", "headless_detected"] };
 
 function formatTime(): string {
   return new Date().toLocaleTimeString("en-US", { hour12: false, fractionalSecondDigits: 3 });
@@ -52,26 +41,19 @@ function formatTime(): string {
 export default function DemoPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [running, setRunning] = useState(false);
-  const [, setMode] = useState<"human" | "bot">("human");
   const [result, setResult] = useState<{ score: number; action: string; anomalies: string[] } | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const idCounter = useRef(0);
 
   const addLog = (type: LogEntry["type"], message: string) => {
-    setLogs((prev) => [
-      ...prev,
-      { id: idCounter.current++, timestamp: formatTime(), type, message },
-    ]);
+    setLogs((prev) => [...prev, { id: idCounter.current++, timestamp: formatTime(), type, message }]);
   };
 
   useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [logs]);
 
   const runDemo = (simMode: "human" | "bot") => {
-    setMode(simMode);
     setRunning(true);
     setResult(null);
     setLogs([]);
@@ -98,14 +80,13 @@ export default function DemoPage() {
     });
 
     setTimeout(() => {
-      const r = demoResult;
-      setResult(r);
-      if (r.action === "allow") {
-        addLog("success", `Score: ${r.score}/100 → ALLOWED`);
+      setResult(demoResult);
+      if (demoResult.action === "allow") {
+        addLog("success", `Score: ${demoResult.score}/100 → ALLOWED`);
         addLog("success", "Token issued: jns_tok_a8f2...c41d (expires in 5m)");
       } else {
-        addLog("error", `Score: ${r.score}/100 → BLOCKED`);
-        addLog("error", `Anomalies: ${r.anomalies.join(", ")}`);
+        addLog("error", `Score: ${demoResult.score}/100 → BLOCKED`);
+        addLog("error", `Anomalies: ${demoResult.anomalies.join(", ")}`);
       }
       setRunning(false);
     }, demoResult.delay);
@@ -114,52 +95,55 @@ export default function DemoPage() {
   const logColor = (type: LogEntry["type"]) => {
     switch (type) {
       case "success": return "text-emerald-400";
-      case "warning": return "text-yellow-400";
+      case "warning": return "text-[#d4a254]";
       case "error": return "text-red-400";
-      case "signal": return "text-blue-400";
+      case "signal": return "text-[#d4a254]/70";
       default: return "text-zinc-400";
     }
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-[#09090b] text-white">
       {/* Nav */}
-      <nav className="border-b border-zinc-800">
-        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <nav className="border-b border-white/[0.06] bg-[#09090b]/80 backdrop-blur-xl">
+        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 py-3.5">
+          <Link href="/" className="flex items-center gap-2.5">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d4a254" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
             <span className="text-lg font-semibold tracking-tight">Janus</span>
           </Link>
           <div className="flex items-center gap-6">
             <Link href="/docs" className="text-sm text-zinc-400 hover:text-white transition-colors">Docs</Link>
-            <Link href="/demo" className="text-sm text-white">Demo</Link>
+            <Link href="/demo" className="text-sm" style={{ color: '#d4a254' }}>Demo</Link>
           </div>
         </div>
       </nav>
 
-      <div className="mx-auto max-w-6xl px-6 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold">Interactive Demo</h1>
-          <p className="mt-2 text-zinc-400">
-            See how Janus scores a real browser vs a headless bot. No actual API calls — this is a simulation.
+      <div className="mx-auto max-w-6xl px-6 py-16">
+        <div className="text-center mb-14">
+          <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#d4a254' }}>Interactive</p>
+          <h1 className="text-4xl font-bold">Live Demo</h1>
+          <p className="mt-3 text-zinc-400 max-w-lg mx-auto">
+            See how Janus scores a real browser vs a headless bot. This is a client-side simulation.
           </p>
         </div>
 
         {/* Mode selector */}
-        <div className="flex items-center justify-center gap-3 mb-8">
+        <div className="flex items-center justify-center gap-3 mb-10">
           <button
             onClick={() => runDemo("human")}
             disabled={running}
-            className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+            className="rounded-lg px-6 py-2.5 text-sm font-medium text-white disabled:opacity-50 transition-all hover:brightness-110"
+            style={{ backgroundColor: 'rgba(34, 197, 94, 0.8)' }}
           >
             Simulate Human
           </button>
           <button
             onClick={() => runDemo("bot")}
             disabled={running}
-            className="rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+            className="rounded-lg px-6 py-2.5 text-sm font-medium text-white disabled:opacity-50 transition-all hover:brightness-110"
+            style={{ backgroundColor: 'rgba(239, 68, 68, 0.8)' }}
           >
             Simulate Bot
           </button>
@@ -168,23 +152,23 @@ export default function DemoPage() {
         {/* Split view */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left: Widget simulation */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-8">
-            <h2 className="text-sm font-medium text-zinc-400 mb-6">Client (Browser)</h2>
-            <div className="flex items-center justify-center py-12">
+          <div className="rounded-xl bg-white/[0.02] p-8" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+            <h2 className="text-xs font-medium uppercase tracking-widest text-zinc-500 mb-6">Client (Browser)</h2>
+            <div className="flex items-center justify-center py-16">
               {!running && !result && (
                 <div className="text-center">
-                  <div className="inline-flex items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-900 px-5 py-3">
-                    <div className="h-6 w-6 rounded border-2 border-zinc-600" />
+                  <div className="inline-flex items-center gap-3 rounded-lg px-5 py-3" style={{ border: '1px solid rgba(212, 162, 84, 0.2)', backgroundColor: 'rgba(212, 162, 84, 0.04)' }}>
+                    <div className="h-6 w-6 rounded" style={{ border: '2px solid rgba(212, 162, 84, 0.4)' }} />
                     <span className="text-sm text-zinc-300">I&apos;m not a robot</span>
-                    <span className="text-[10px] text-zinc-600 ml-4">Janus</span>
+                    <span className="text-[10px] ml-4" style={{ color: '#d4a254' }}>Janus</span>
                   </div>
                   <p className="mt-4 text-xs text-zinc-600">Click a button above to start</p>
                 </div>
               )}
               {running && (
                 <div className="text-center">
-                  <div className="inline-flex items-center gap-3 rounded-lg border border-blue-800 bg-zinc-900 px-5 py-3">
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                  <div className="inline-flex items-center gap-3 rounded-lg px-5 py-3" style={{ border: '1px solid rgba(212, 162, 84, 0.3)', backgroundColor: 'rgba(212, 162, 84, 0.06)' }}>
+                    <div className="h-5 w-5 animate-spin rounded-full border-t-transparent" style={{ borderWidth: '2px', borderColor: '#d4a254', borderTopColor: 'transparent' }} />
                     <span className="text-sm text-zinc-300">Verifying...</span>
                   </div>
                 </div>
@@ -192,11 +176,11 @@ export default function DemoPage() {
               {!running && result && (
                 <div className="text-center">
                   <div
-                    className={`inline-flex items-center gap-3 rounded-lg border px-5 py-3 ${
-                      result.action === "allow"
-                        ? "border-emerald-800 bg-zinc-900"
-                        : "border-red-800 bg-zinc-900"
-                    }`}
+                    className="inline-flex items-center gap-3 rounded-lg px-5 py-3"
+                    style={{
+                      border: `1px solid ${result.action === "allow" ? "rgba(34, 197, 94, 0.4)" : "rgba(239, 68, 68, 0.4)"}`,
+                      backgroundColor: result.action === "allow" ? "rgba(34, 197, 94, 0.06)" : "rgba(239, 68, 68, 0.06)",
+                    }}
                   >
                     {result.action === "allow" ? (
                       <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round">
@@ -211,27 +195,23 @@ export default function DemoPage() {
                       {result.action === "allow" ? "Verified" : "Blocked"}
                     </span>
                   </div>
-                  {/* Score gauge */}
-                  <div className="mt-6">
-                    <div className="relative h-2 w-48 mx-auto rounded-full bg-zinc-800 overflow-hidden">
+                  <div className="mt-8">
+                    <div className="relative h-1.5 w-56 mx-auto rounded-full bg-zinc-800 overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-1000"
-                        style={{
-                          width: `${result.score}%`,
-                          backgroundColor: result.action === "allow" ? "#22c55e" : "#ef4444",
-                        }}
+                        style={{ width: `${result.score}%`, backgroundColor: result.action === "allow" ? "#22c55e" : "#ef4444" }}
                       />
                     </div>
-                    <p className="mt-2 text-sm">
-                      <span className={result.action === "allow" ? "text-emerald-400" : "text-red-400"}>
+                    <p className="mt-3 text-sm font-medium">
+                      <span style={{ color: result.action === "allow" ? "#22c55e" : "#ef4444" }}>
                         Risk: {result.score}/100
                       </span>
                     </p>
                   </div>
                   {result.anomalies.length > 0 && (
-                    <div className="mt-4 flex flex-wrap justify-center gap-1">
+                    <div className="mt-5 flex flex-wrap justify-center gap-1.5">
                       {result.anomalies.map((a) => (
-                        <span key={a} className="rounded bg-red-950 px-2 py-0.5 text-[10px] text-red-400">
+                        <span key={a} className="rounded-md px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
                           {a}
                         </span>
                       ))}
@@ -243,29 +223,26 @@ export default function DemoPage() {
           </div>
 
           {/* Right: Server log */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
-              <h2 className="text-sm font-medium text-zinc-400">Server Log</h2>
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+            <div className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <h2 className="text-xs font-medium uppercase tracking-widest text-zinc-500">Server Log</h2>
               {running && (
                 <span className="flex items-center gap-1.5">
                   <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ backgroundColor: '#d4a254' }} />
+                    <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: '#d4a254' }} />
                   </span>
                   <span className="text-xs text-zinc-500">Processing</span>
                 </span>
               )}
             </div>
-            <div
-              ref={logRef}
-              className="h-80 overflow-y-auto p-4 font-mono text-xs leading-relaxed"
-            >
+            <div ref={logRef} className="h-80 overflow-y-auto p-4 font-mono text-xs leading-relaxed">
               {logs.length === 0 && (
-                <p className="text-zinc-600">Waiting for verification request...</p>
+                <p className="text-zinc-700">Waiting for verification request...</p>
               )}
               {logs.map((log) => (
                 <div key={log.id} className="flex gap-2">
-                  <span className="text-zinc-600 shrink-0">{log.timestamp}</span>
+                  <span className="text-zinc-700 shrink-0">{log.timestamp}</span>
                   <span className={logColor(log.type)}>{log.message}</span>
                 </div>
               ))}
@@ -273,14 +250,14 @@ export default function DemoPage() {
           </div>
         </div>
 
-        {/* How it works */}
         <div className="mt-16 text-center">
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-zinc-600">
             This is a client-side simulation. In production, all verification happens server-side.
           </p>
           <Link
             href="/docs/getting-started/quickstart"
-            className="mt-4 inline-flex rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-900 transition-colors"
+            className="mt-4 inline-flex rounded-lg px-5 py-2 text-sm font-medium transition-all hover:brightness-110"
+            style={{ border: '1px solid rgba(212, 162, 84, 0.3)', color: '#d4a254' }}
           >
             Deploy your own instance
           </Link>

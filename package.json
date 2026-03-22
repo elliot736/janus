@@ -8,13 +8,16 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "lint": "turbo lint",
+    "lint": "eslint . --ext .ts,.tsx",
     "db:generate": "turbo db:generate --filter=@janus/api",
     "db:migrate": "turbo db:migrate --filter=@janus/api",
     "db:push": "turbo db:push --filter=@janus/api"
   },
   "devDependencies": {
-    "turbo": "^2"
+    "@eslint/js": "^9.16.0",
+    "eslint": "^9.16.0",
+    "turbo": "^2",
+    "typescript-eslint": "^8.0.0"
   },
   "packageManager": "npm@10.8.0",
   "engines": {

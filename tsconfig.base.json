@@ -12,6 +12,8 @@
     "isolatedModules": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmitOnError": true
   }
 }

@@ -446,6 +446,22 @@ await this.alerting.sendAlert({
 
 ---
 
+## Deploy
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/janus?referralCode=janus)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/elliot736/janus)
+
+Or use Docker Compose:
+
+```bash
+curl -O https://raw.githubusercontent.com/elliot736/janus/main/docker-compose.yml
+docker compose up -d
+```
+
+For AWS deployment with Terraform, see [AWS Deployment](docs/getting-started/aws.md).
+
+---
+
 ## Quick Start
 
 ### Prerequisites

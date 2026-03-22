@@ -118,5 +118,64 @@ describe('Janus API (e2e)', () => {
         .get('/api/v1/sites')
         .expect(401);
     });
+
+    it('GET /api/v1/analytics/:id/summary without auth should return 401', () => {
+      if (!app) return;
+      return request(app.getHttpServer())
+        .get('/api/v1/analytics/fake-id/summary')
+        .expect(401);
+    });
+
+    it('POST /api/v1/sites without auth should return 401', () => {
+      if (!app) return;
+      return request(app.getHttpServer())
+        .post('/api/v1/sites')
+        .send({ name: 'Test', domain: ['test.com'] })
+        .expect(401);
+    });
+  });
+
+  describe('Verify', () => {
+    it('POST /api/v1/verify without X-Site-Key should return 400', () => {
+      if (!app) return;
+      return request(app.getHttpServer())
+        .post('/api/v1/verify')
+        .send({ challengeId: 'test', nonce: '123' })
+        .expect(400);
+    });
+
+    it('POST /api/v1/verify without body should return 400', () => {
+      if (!app) return;
+      return request(app.getHttpServer())
+        .post('/api/v1/verify')
+        .set('X-Site-Key', 'jns_site_live_test')
+        .send({})
+        .expect(400);
+    });
+
+    it('POST /api/v1/verify with invalid challenge should return 400 or 404', () => {
+      if (!app) return;
+      return request(app.getHttpServer())
+        .post('/api/v1/verify')
+        .set('X-Site-Key', 'jns_site_live_test')
+        .send({ challengeId: 'non-existent', nonce: '123' })
+        .expect((res) => {
+          expect([400, 404]).toContain(res.status);
+        });
+    });
+  });
+
+  describe('Content-Type enforcement', () => {
+    it('POST /api/v1/challenge with wrong content type should still process', () => {
+      if (!app) return;
+      return request(app.getHttpServer())
+        .post('/api/v1/challenge')
+        .set('Content-Type', 'text/plain')
+        .send('{}')
+        .expect((res) => {
+          // Should return an error (no site key), not crash
+          expect([400, 415]).toContain(res.status);
+        });
+    });
   });
 });

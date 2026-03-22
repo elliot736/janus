@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { Shield } from "lucide-react";
 
 interface LogEntry {
   id: number;
@@ -90,7 +91,7 @@ export default function DemoPage() {
       <nav className="border-b border-[#1a1a1a]">
         <div className="mx-auto max-w-[980px] flex items-center justify-between px-6 h-14">
           <Link href="/" className="flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4a254" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+            <Shield size={18} className="text-[#d4a254]" />
             <span className="font-semibold text-[15px]">Janus</span>
           </Link>
           <div className="flex items-center gap-5">

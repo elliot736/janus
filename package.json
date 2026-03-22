@@ -1,0 +1,23 @@
+{
+  "name": "janus",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "db:generate": "turbo db:generate --filter=@janus/api",
+    "db:migrate": "turbo db:migrate --filter=@janus/api",
+    "db:push": "turbo db:push --filter=@janus/api"
+  },
+  "devDependencies": {
+    "turbo": "^2"
+  },
+  "packageManager": "npm@10.8.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

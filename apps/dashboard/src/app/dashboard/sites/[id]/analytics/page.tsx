@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Zap } from "lucide-react";
 import { LoadingState } from "@/components/loading";
 import { ErrorState, EmptyState } from "@/components/error-state";
 import { DonutChart } from "@/components/donut-chart";
@@ -57,11 +57,19 @@ interface AnalyticsSummary {
   };
 }
 
+interface AdaptiveDifficulty {
+  baseDifficulty: number;
+  bonus: number;
+  effectiveDifficulty: number;
+  isElevated: boolean;
+}
+
 interface AnalyticsData {
   summary: AnalyticsSummary;
   timeline: RequestsPerDay[];
   riskDistribution: RiskBucket[];
   topIps: TopIp[];
+  adaptive: AdaptiveDifficulty | null;
 }
 
 const BUCKET_COLORS: Record<string, string> = {
@@ -102,13 +110,15 @@ export default function SiteAnalyticsPage() {
       apiGet<RequestsPerDay[]>(`/api/v1/analytics/${siteId}/requests-per-day?days=${days}`),
       apiGet<RiskBucket[]>(`/api/v1/analytics/${siteId}/risk-distribution?days=${days}`),
       apiGet<TopIp[]>(`/api/v1/analytics/${siteId}/top-ips?days=${days}&limit=5`),
+      apiGet<AdaptiveDifficulty>(`/api/v1/analytics/${siteId}/adaptive-difficulty`).catch(() => null),
     ])
-      .then(([summary, timeline, riskDistribution, topIps]) =>
+      .then(([summary, timeline, riskDistribution, topIps, adaptive]) =>
         setData({
           summary,
           timeline: timeline ?? [],
           riskDistribution: riskDistribution ?? [],
           topIps: topIps ?? [],
+          adaptive: adaptive ?? null,
         })
       )
       .catch((err) => setError(err.message || "Failed to load analytics"))
@@ -160,6 +170,46 @@ export default function SiteAnalyticsPage() {
 
       {!loading && !error && data && (
         <>
+          {/* Adaptive difficulty banner */}
+          {data.adaptive && (
+            <div
+              className={`mt-6 flex items-center gap-3 rounded-lg border px-4 py-3 ${
+                data.adaptive.isElevated
+                  ? "border-amber-800/50 bg-amber-950/30"
+                  : "border-zinc-800 bg-zinc-900/50"
+              }`}
+            >
+              <Zap
+                className={`h-4 w-4 shrink-0 ${
+                  data.adaptive.isElevated ? "text-amber-400" : "text-zinc-500"
+                }`}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-zinc-200">
+                    Adaptive Difficulty
+                  </span>
+                  {data.adaptive.isElevated && (
+                    <span className="rounded bg-amber-900/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
+                      ELEVATED
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {data.adaptive.isElevated
+                    ? `High block rate detected. Difficulty raised from ${data.adaptive.baseDifficulty} to ${data.adaptive.effectiveDifficulty} (+${data.adaptive.bonus}).`
+                    : `Base difficulty ${data.adaptive.baseDifficulty}. No elevation needed — traffic is normal.`}
+                </p>
+              </div>
+              <div className="flex items-baseline gap-1 shrink-0">
+                <span className={`text-2xl font-bold ${data.adaptive.isElevated ? "text-amber-300" : "text-zinc-300"}`}>
+                  {data.adaptive.effectiveDifficulty}
+                </span>
+                <span className="text-xs text-zinc-500">/ 8</span>
+              </div>
+            </div>
+          )}
+
           {/* Summary stats row */}
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">

@@ -7,10 +7,16 @@ import {
 } from '@nestjs/common';
 import { Session } from '@thallesp/nestjs-better-auth';
 import { AnalyticsService } from './analytics.service';
+import { AdaptiveDifficultyService } from '../challenge/adaptive-difficulty.service';
+import { SitesService } from '../sites/sites.service';
 
 @Controller('api/v1/analytics')
 export class AnalyticsController {
-  constructor(private readonly analyticsService: AnalyticsService) {}
+  constructor(
+    private readonly analyticsService: AnalyticsService,
+    private readonly adaptiveDifficulty: AdaptiveDifficultyService,
+    private readonly sitesService: SitesService,
+  ) {}
 
   @Get(':siteId/summary')
   async getSummary(
@@ -103,5 +109,29 @@ export class AnalyticsController {
       numDays,
       numLimit,
     );
+  }
+
+  @Get(':siteId/adaptive-difficulty')
+  async getAdaptiveDifficulty(
+    @Session() session: { user: { id: string } },
+    @Param('siteId') siteId: string,
+  ) {
+    if (!session?.user) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
+    // Validate ownership
+    const site = await this.sitesService.findOneByOwner(siteId, session.user.id);
+    const settings = site.settings as Record<string, unknown> | null;
+    const baseDifficulty = (settings?.powDifficulty as number) ?? 4;
+    const bonus = await this.adaptiveDifficulty.getDifficultyBonus(siteId);
+    const effective = Math.min(baseDifficulty + bonus, 8);
+
+    return {
+      baseDifficulty,
+      bonus,
+      effectiveDifficulty: effective,
+      isElevated: bonus > 0,
+    };
   }
 }

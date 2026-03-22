@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, X, Zap } from "lucide-react";
 import { LoadingState } from "@/components/loading";
 import { ErrorState, EmptyState } from "@/components/error-state";
 import { apiGet, apiPut } from "@/lib/api";
@@ -68,14 +68,26 @@ export default function SiteSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [adaptive, setAdaptive] = useState<{
+    baseDifficulty: number;
+    bonus: number;
+    effectiveDifficulty: number;
+    isElevated: boolean;
+  } | null>(null);
 
   const fetchSettings = useCallback(() => {
     setLoading(true);
     setError(null);
-    apiGet<SiteResponse>(`/api/v1/sites/${siteId}`)
-      .then((site) => {
+    Promise.all([
+      apiGet<SiteResponse>(`/api/v1/sites/${siteId}`),
+      apiGet<{ baseDifficulty: number; bonus: number; effectiveDifficulty: number; isElevated: boolean }>(
+        `/api/v1/analytics/${siteId}/adaptive-difficulty`
+      ).catch(() => null),
+    ])
+      .then(([site, adaptiveData]) => {
         const parsed = parseSiteSettings(site.settings, site.domain ?? []);
         setSettings(parsed);
+        setAdaptive(adaptiveData);
       })
       .catch((err) => setError(err.message || "Failed to load settings"))
       .finally(() => setLoading(false));
@@ -194,6 +206,29 @@ export default function SiteSettingsPage() {
             <span>Easy</span>
             <span>Hard</span>
           </div>
+          {adaptive && (
+            <div
+              className={`mt-3 flex items-center gap-2 rounded-md px-3 py-2 text-xs ${
+                adaptive.isElevated
+                  ? "bg-amber-950/40 border border-amber-800/40"
+                  : "bg-zinc-900 border border-zinc-800"
+              }`}
+            >
+              <Zap className={`h-3.5 w-3.5 ${adaptive.isElevated ? "text-amber-400" : "text-zinc-500"}`} />
+              {adaptive.isElevated ? (
+                <span className="text-amber-300/90">
+                  Adaptive mode active — difficulty elevated to{" "}
+                  <strong>{adaptive.effectiveDifficulty}</strong> (+{adaptive.bonus}) due to
+                  high block rate
+                </span>
+              ) : (
+                <span className="text-zinc-500">
+                  Adaptive mode: no elevation needed. Effective difficulty:{" "}
+                  <strong className="text-zinc-400">{adaptive.effectiveDifficulty}</strong>
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Risk Thresholds */}

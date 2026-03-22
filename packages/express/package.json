@@ -1,0 +1,28 @@
+{
+  "name": "@janus/express",
+  "version": "0.1.0",
+  "description": "Express middleware for Janus server-side token verification",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "jest"
+  },
+  "peerDependencies": {
+    "express": ">=4.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "express": "^5.0.0",
+    "jest": "^30.3.0",
+    "@types/jest": "^30.0.0",
+    "ts-jest": "^29.4.6",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0"
+  },
+  "sideEffects": false,
+  "license": "MIT"
+}

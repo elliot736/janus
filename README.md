@@ -99,6 +99,9 @@ Three components, one monorepo:
 | **API**       | NestJS, Express, Drizzle ORM          | Challenge issuance, verification, risk scoring, token management |
 | **Dashboard** | Next.js 15, React 19, Tailwind CSS 4  | Site management, analytics, settings, auth                       |
 | **SDK**       | TypeScript, Rollup, zero dependencies | Browser-side signal collection and PoW solving                   |
+| **@janus/react** | React 18+, hooks, context          | React components and `useJanus` hook                             |
+| **@janus/nextjs** | Next.js 14+, App Router           | Client components + server-side verification + middleware        |
+| **@janus/express** | Express 4+, middleware            | One-line `janusVerify()` middleware for token validation          |
 
 Backed by PostgreSQL for persistent storage and Redis for rate limiting, nonce replay protection, and fingerprint velocity tracking.
 
@@ -503,7 +506,144 @@ Sign in to the dashboard, create a site, and save your site key and secret key.
 
 ### Step 2: Add the SDK to your page
 
-**HTML:**
+Choose the integration method that matches your stack:
+
+#### React
+
+```bash
+npm install @janus/react @janus/sdk
+```
+
+```tsx
+import { JanusProvider, useJanus } from '@janus/react';
+
+// Wrap your app
+function App() {
+  return (
+    <JanusProvider config={{
+      siteKey: "jns_site_live_xxxxxxxxxxxx",
+      apiUrl: "https://your-janus.com",
+      mode: "invisible",
+    }}>
+      <LoginForm />
+    </JanusProvider>
+  );
+}
+
+// Use the hook in any component
+function LoginForm() {
+  const { execute, loading } = useJanus();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const { success, token } = await execute();
+    if (success) {
+      // Submit form with token
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <button disabled={loading}>
+        {loading ? "Verifying..." : "Log in"}
+      </button>
+    </form>
+  );
+}
+```
+
+For managed mode, use the widget component:
+
+```tsx
+import { JanusWidget } from '@janus/react';
+
+<JanusWidget
+  onVerify={(token, riskScore) => setToken(token)}
+  onError={(err) => console.error(err)}
+/>
+```
+
+#### Next.js
+
+```bash
+npm install @janus/nextjs @janus/sdk
+```
+
+**Client-side** (same API as `@janus/react`):
+
+```tsx
+// app/providers.tsx
+"use client";
+import { JanusProvider } from '@janus/nextjs';
+
+export function Providers({ children }) {
+  return (
+    <JanusProvider config={{
+      siteKey: process.env.NEXT_PUBLIC_JANUS_SITE_KEY,
+      apiUrl: process.env.NEXT_PUBLIC_JANUS_API_URL,
+      mode: "invisible",
+    }}>
+      {children}
+    </JanusProvider>
+  );
+}
+```
+
+**Server-side** (Route Handler or Server Action):
+
+```typescript
+// app/api/submit/route.ts
+import { verifyJanusToken } from '@janus/nextjs/server';
+
+export async function POST(request) {
+  const body = await request.json();
+  const result = await verifyJanusToken(body['janus-token'], {
+    secretKey: process.env.JANUS_SECRET_KEY,
+    apiUrl: process.env.JANUS_API_URL,
+  });
+
+  if (!result.success || result.action === 'block') {
+    return Response.json({ error: 'Bot detected' }, { status: 403 });
+  }
+  // Process form...
+}
+```
+
+**Middleware protection** (auto-verify on protected routes):
+
+```typescript
+// middleware.ts
+import { withJanusProtection } from '@janus/nextjs/server';
+
+export default withJanusProtection({
+  secretKey: process.env.JANUS_SECRET_KEY,
+  apiUrl: process.env.JANUS_API_URL,
+  protectedPaths: ['/api/submit', '/api/contact'],
+});
+```
+
+#### Express
+
+```bash
+npm install @janus/express
+```
+
+```typescript
+import { janusVerify } from '@janus/express';
+
+app.post('/login',
+  janusVerify({
+    secretKey: process.env.JANUS_SECRET_KEY,
+    apiUrl: 'https://your-janus.com',
+  }),
+  (req, res) => {
+    // req.janus.success === true, req.janus.risk_score available
+    res.json({ message: 'Logged in' });
+  }
+);
+```
+
+#### HTML (no framework)
 
 ```html
 <script src="https://your-janus.com/sdk.js"></script>
@@ -525,19 +665,9 @@ Sign in to the dashboard, create a site, and save your site key and secret key.
 </script>
 ```
 
-**Programmatic:**
-
-```typescript
-const janus = new Janus.Janus({
-  siteKey: "jns_site_live_xxxxxxxxxxxx",
-  apiUrl: "https://your-janus.com",
-  mode: "invisible",
-});
-
-const { success, token, riskScore, action } = await janus.execute();
-```
-
 ### Step 3: Validate the token server-side
+
+If you're not using `@janus/express` or `@janus/nextjs/server`, validate manually:
 
 ```javascript
 const res = await fetch("https://your-janus.com/api/v1/siteverify", {
@@ -694,14 +824,17 @@ janus/
 │           ├── app/dashboard/  Sites, analytics, settings, logs
 │           └── components/     Sidebar, stat cards, code snippets
 ├── packages/
-│   └── sdk/                Browser SDK (~5KB gzipped)
-│       └── src/
-│           ├── janus.ts        Main class
-│           ├── pow-worker.ts   Web Worker PoW solver
-│           ├── fingerprint.ts  Browser fingerprinting
-│           ├── behavior.ts     Mouse, keyboard, scroll tracking
-│           ├── detection.ts    Automation detection
-│           └── crypto.ts       SHA-256, Merkle root
+│   ├── sdk/                Browser SDK (~5KB gzipped)
+│   │   └── src/
+│   │       ├── janus.ts        Main class
+│   │       ├── pow-worker.ts   Web Worker PoW solver
+│   │       ├── fingerprint.ts  Browser fingerprinting
+│   │       ├── behavior.ts     Mouse, keyboard, scroll tracking
+│   │       ├── detection.ts    Automation detection
+│   │       └── crypto.ts       SHA-256, Merkle root
+│   ├── react/              @janus/react — components & hooks
+│   ├── nextjs/             @janus/nextjs — Next.js integration
+│   └── express/            @janus/express — Express middleware
 ├── terraform/              AWS infra (ECS, RDS, Redis, ALB, CDN)
 ├── nginx/                  Reverse proxy config
 ├── .github/workflows/      CI/CD pipelines

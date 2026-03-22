@@ -27,6 +27,7 @@ export interface VerifyResult {
   token: string;
   riskScore: number;
   action: string;
+  error?: string;
 }
 
 // ── Proof-of-Work ──────────────────────────────────────────────────

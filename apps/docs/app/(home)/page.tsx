@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Shield, Github } from "lucide-react";
+import { Shield, Github, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
 
 const frameworks = [
   {
@@ -104,6 +105,7 @@ const s = {
 export default function HomePage() {
   const [activeFramework, setActiveFramework] = useState(0);
   const fw = frameworks[activeFramework]!;
+  const { resolvedTheme, setTheme } = useTheme();
 
   return (
     <div className="min-h-screen antialiased" style={{ ...s.bg, ...s.text }}>
@@ -120,6 +122,14 @@ export default function HomePage() {
             <a href="https://github.com/elliot736/janus" target="_blank" rel="noopener noreferrer" className="transition-colors" style={s.text2} aria-label="GitHub">
               <Github size={18} />
             </a>
+            <button
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+              className="transition-colors"
+              style={s.text2}
+              aria-label="Toggle theme"
+            >
+              {resolvedTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             <Link href="/docs/getting-started/quickstart" className="hidden sm:flex h-8 px-3 items-center rounded-md text-[13px] font-medium transition-colors" style={s.accentBg}>
               Get started
             </Link>

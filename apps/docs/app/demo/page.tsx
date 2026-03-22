@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Shield } from "lucide-react";
+import { Shield, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
 
 interface LogEntry { id: number; ts: string; type: "info" | "success" | "error" | "signal"; msg: string; }
 
@@ -36,6 +37,7 @@ export default function DemoPage() {
   const [result, setResult] = useState<{ score: number; action: string; anomalies: string[] } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const id = useRef(0);
+  const { resolvedTheme, setTheme } = useTheme();
 
   const log = (type: LogEntry["type"], msg: string) =>
     setLogs((p) => [...p, { id: id.current++, ts: now(), type, msg }]);
@@ -83,6 +85,9 @@ export default function DemoPage() {
           <div className="flex items-center gap-5">
             <Link href="/docs" className="text-[13px] transition-colors" style={{ color: 'var(--j-text-secondary)' }}>Docs</Link>
             <span className="text-[13px]">Demo</span>
+            <button onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")} className="transition-colors" style={{ color: 'var(--j-text-secondary)' }} aria-label="Toggle theme">
+              {resolvedTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
           </div>
         </div>
       </nav>

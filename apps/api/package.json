@@ -11,7 +11,9 @@
     "db:push": "drizzle-kit push",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage"
+    "test:cov": "jest --coverage",
+    "test:e2e": "jest --config jest.e2e.config.ts",
+    "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.0",
@@ -43,8 +45,10 @@
     "@nestjs/testing": "^11.1.17",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.0.0",
+    "@types/supertest": "^6.0.0",
     "drizzle-kit": "^0.30.0",
     "jest": "^30.3.0",
+    "supertest": "^7.0.0",
     "ts-jest": "^29.4.6",
     "tsx": "^4.0.0",
     "typescript": "^5.7.0"

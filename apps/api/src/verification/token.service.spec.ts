@@ -36,7 +36,7 @@ describe('TokenService', () => {
 
       // Verify payload can be decoded
       const payload = JSON.parse(
-        Buffer.from(parts[0], 'base64url').toString('utf-8'),
+        Buffer.from(parts[0]!, 'base64url').toString('utf-8'),
       );
       expect(payload.siteId).toBe('site-123');
       expect(payload.challengeId).toBe('challenge-456');
@@ -98,7 +98,7 @@ describe('TokenService', () => {
       // Issue token, then manipulate the expiry by creating a service with
       // a very short TTL is not possible, so we'll create a token manually
       const { token } = service.issue(issueParams);
-      const [payloadB64] = token.split('.');
+      const payloadB64 = token.split('.')[0]!;
       const payload = JSON.parse(
         Buffer.from(payloadB64, 'base64url').toString('utf-8'),
       );

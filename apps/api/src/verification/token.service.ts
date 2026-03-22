@@ -80,7 +80,8 @@ export class TokenService {
       return { valid: false, reason: 'Invalid token format' };
     }
 
-    const [payloadB64, providedSignature] = parts;
+    const payloadB64 = parts[0]!;
+    const providedSignature = parts[1]!;
 
     // Constant-time signature verification
     const expectedSignature = this.sign(payloadB64);
@@ -91,7 +92,7 @@ export class TokenService {
     // Decode payload
     let data: TokenData;
     try {
-      const decoded = Buffer.from(payloadB64, 'base64url').toString('utf-8');
+      const decoded = Buffer.from(payloadB64 as string, 'base64url').toString('utf-8');
       data = JSON.parse(decoded);
     } catch {
       return { valid: false, reason: 'Malformed token payload' };

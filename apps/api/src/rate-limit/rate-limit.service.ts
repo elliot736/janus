@@ -66,7 +66,7 @@ export class RateLimitService implements OnModuleDestroy {
       if (currentCount >= limit) {
         // Find the oldest entry to calculate retry-after
         const oldest = await this.redis.zrange(key, 0, 0, 'WITHSCORES');
-        const oldestScore = oldest.length >= 2 ? parseInt(oldest[1], 10) : now;
+        const oldestScore = oldest.length >= 2 ? parseInt(oldest[1] ?? '0', 10) : now;
         const retryAfterMs = oldestScore + windowMs - now;
 
         return {

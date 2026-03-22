@@ -202,9 +202,14 @@ echo "y" | npx @better-auth/cli generate
 npx drizzle-kit push
 cd ../..
 
+# Seed test data (3 sites, API keys, 7 days of verification history)
+cd apps/api && npm run db:seed && cd ../..
+
 # Run everything
 npm run dev
 ```
+
+The seed script creates three sites (Production, Staging, Landing Page) with different detection configs, four site-scoped API keys, and ~500 verifications spread over 7 days with realistic traffic patterns. It prints all credentials in a formatted table so you can start testing immediately.
 
 Dashboard: `http://localhost:3000`
 API: `http://localhost:3001`

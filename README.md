@@ -11,6 +11,10 @@
 
 Janus protects your forms, logins, and APIs from bots using proof-of-work challenges, browser fingerprinting, behavioral analysis, and cross-signal validation. You deploy it on your own infrastructure and keep full control.
 
+<p align="center">
+  <img src="docs/screenshots/dashboard-demo.gif" alt="Janus Dashboard Demo" width="800" />
+</p>
+
 ---
 
 ## Why Janus

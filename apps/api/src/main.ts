@@ -6,6 +6,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { CorrelationIdInterceptor } from './common/interceptors/correlation-id.interceptor';
 import { ValidationPipe } from './common/pipes/validation.pipe';
 import cookieParser from 'cookie-parser';
 
@@ -28,7 +29,7 @@ async function bootstrap() {
   });
 
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(new LoggingInterceptor());
+  app.useGlobalInterceptors(new CorrelationIdInterceptor(), new LoggingInterceptor());
   app.useGlobalPipes(new ValidationPipe());
 
   // Swagger / OpenAPI docs (non-production only)

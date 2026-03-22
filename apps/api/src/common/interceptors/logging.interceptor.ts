@@ -25,6 +25,8 @@ export class LoggingInterceptor implements NestInterceptor {
     const userAgent = request.headers['user-agent'] || 'unknown';
     const startTime = Date.now();
 
+    const correlationId = (request as any).correlationId as string | undefined;
+
     return next.handle().pipe(
       tap({
         next: () => {
@@ -34,6 +36,7 @@ export class LoggingInterceptor implements NestInterceptor {
             JSON.stringify({
               level: 'info',
               msg: 'HTTP request',
+              correlationId,
               method,
               path,
               statusCode: response.statusCode,
@@ -51,6 +54,7 @@ export class LoggingInterceptor implements NestInterceptor {
             JSON.stringify({
               level: 'error',
               msg: 'HTTP request',
+              correlationId,
               method,
               path,
               statusCode,

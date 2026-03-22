@@ -17,6 +17,7 @@ describe('VerificationService', () => {
   let mockMetricsService: any;
   let mockGeoIpService: any;
   let mockWebhooksService: any;
+  let mockAdaptiveDifficulty: any;
 
   const fakeSite = {
     id: 'site-uuid-1',
@@ -137,6 +138,10 @@ describe('VerificationService', () => {
       fire: jest.fn(),
     };
 
+    mockAdaptiveDifficulty = {
+      recordOutcome: jest.fn(),
+    };
+
     service = new VerificationService(
       mockDb,
       mockSitesService,
@@ -148,6 +153,7 @@ describe('VerificationService', () => {
       mockMetricsService,
       mockGeoIpService,
       mockWebhooksService,
+      mockAdaptiveDifficulty,
     );
   });
 

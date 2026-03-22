@@ -16,6 +16,7 @@ import { TokenService } from './token.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { GeoIpService } from '../geoip/geoip.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
+import { AdaptiveDifficultyService } from '../challenge/adaptive-difficulty.service';
 
 interface VerifyParams {
   siteKey: string;
@@ -47,6 +48,7 @@ export class VerificationService {
     private readonly metricsService: MetricsService,
     private readonly geoIpService: GeoIpService,
     private readonly webhooksService: WebhooksService,
+    private readonly adaptiveDifficulty: AdaptiveDifficultyService,
   ) {}
 
   async verify(params: VerifyParams) {
@@ -203,6 +205,9 @@ export class VerificationService {
 
     this.metricsService.incrementVerification(action);
     this.metricsService.recordRiskScore(riskResult.score);
+
+    // Record outcome for adaptive difficulty (non-blocking)
+    this.adaptiveDifficulty.recordOutcome(site.id, action);
 
     // Fire webhook for blocked verifications (non-blocking)
     if (action === 'block') {

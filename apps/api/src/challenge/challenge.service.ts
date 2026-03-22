@@ -5,6 +5,7 @@ import { DATABASE_TOKEN, type Database } from '../db/db.provider';
 import { challenges } from '../db/schema';
 import { SitesService } from '../sites/sites.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { AdaptiveDifficultyService } from './adaptive-difficulty.service';
 import { eq } from 'drizzle-orm';
 
 interface IssueChallengeParams {
@@ -23,6 +24,7 @@ export class ChallengeService {
     private readonly sitesService: SitesService,
     private readonly configService: ConfigService,
     private readonly metricsService: MetricsService,
+    private readonly adaptiveDifficulty: AdaptiveDifficultyService,
   ) {
     const secret = this.configService.get<string>('HMAC_SECRET');
     if (!secret) throw new Error('HMAC_SECRET environment variable is required');
@@ -54,7 +56,8 @@ export class ChallengeService {
     }
 
     const settings = site.settings as Record<string, unknown> | null;
-    const difficulty = (settings?.powDifficulty as number) ?? 4;
+    const baseDifficulty = (settings?.powDifficulty as number) ?? 4;
+    const difficulty = await this.adaptiveDifficulty.getEffectiveDifficulty(site.id, baseDifficulty);
     const mode = (settings?.mode as string) ?? 'invisible';
     const gdprMode = (settings?.gdprMode as boolean) ?? false;
     const nonce = randomBytes(16).toString('hex');

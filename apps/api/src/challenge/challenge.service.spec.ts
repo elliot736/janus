@@ -8,6 +8,7 @@ describe('ChallengeService', () => {
   let mockSitesService: any;
   let mockConfigService: any;
   let mockMetricsService: any;
+  let mockAdaptiveDifficulty: any;
 
   const fakeSite = {
     id: 'site-uuid-1',
@@ -60,7 +61,13 @@ describe('ChallengeService', () => {
       incrementChallenge: jest.fn(),
     };
 
-    service = new ChallengeService(mockDb, mockSitesService, mockConfigService, mockMetricsService);
+    mockAdaptiveDifficulty = {
+      getEffectiveDifficulty: jest.fn().mockResolvedValue(5),
+      getDifficultyBonus: jest.fn().mockResolvedValue(0),
+      recordOutcome: jest.fn(),
+    };
+
+    service = new ChallengeService(mockDb, mockSitesService, mockConfigService, mockMetricsService, mockAdaptiveDifficulty);
   });
 
   describe('issueChallenge()', () => {
@@ -97,6 +104,7 @@ describe('ChallengeService', () => {
         ...fakeSite,
         settings: null,
       });
+      mockAdaptiveDifficulty.getEffectiveDifficulty.mockResolvedValue(4);
 
       const result = await service.issueChallenge({
         siteKey: 'jns_site_live_abc',
@@ -107,6 +115,23 @@ describe('ChallengeService', () => {
         mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
       expect(insertValues.difficulty).toBe(4);
       expect(result.difficulty).toBe(4);
+      // Should have been called with base difficulty 4
+      expect(mockAdaptiveDifficulty.getEffectiveDifficulty).toHaveBeenCalledWith('site-uuid-1', 4);
+    });
+
+    it('should increase difficulty when adaptive service detects attack', async () => {
+      // Base difficulty is 5 (from settings), adaptive adds +2 = 7
+      mockAdaptiveDifficulty.getEffectiveDifficulty.mockResolvedValue(7);
+
+      const result = await service.issueChallenge({
+        siteKey: 'jns_site_live_abc',
+        ipAddress: '1.2.3.4',
+      });
+
+      const insertValues =
+        mockDb.insert.mock.results[0].value.values.mock.calls[0][0];
+      expect(insertValues.difficulty).toBe(7);
+      expect(result.difficulty).toBe(7);
     });
 
     it('should validate origin against site domains', async () => {
@@ -188,7 +213,7 @@ describe('ChallengeService', () => {
       } as unknown as ConfigService;
 
       expect(
-        () => new ChallengeService(mockDb, mockSitesService, badConfig, mockMetricsService),
+        () => new ChallengeService(mockDb, mockSitesService, badConfig, mockMetricsService, mockAdaptiveDifficulty),
       ).toThrow('HMAC_SECRET environment variable is required');
     });
   });

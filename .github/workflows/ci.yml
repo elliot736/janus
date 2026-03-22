@@ -77,3 +77,48 @@ jobs:
           else
             echo "No test script found or tests skipped"
           fi
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: janus_test
+          POSTGRES_USER: janus
+          POSTGRES_PASSWORD: testpass
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    env:
+      DATABASE_URL: postgresql://janus:testpass@localhost:5432/janus_test
+      REDIS_URL: redis://localhost:6379
+      HMAC_SECRET: test-hmac-secret-for-ci
+      TOKEN_SECRET: test-token-secret-for-ci
+      COOKIE_SECRET: test-cookie-secret-for-ci
+      BETTER_AUTH_SECRET: test-better-auth-secret-for-ci
+      CORS_ORIGIN: http://localhost:3000
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: cd apps/api && npx drizzle-kit push
+      - run: cd apps/api && npm run test:e2e

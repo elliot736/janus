@@ -11,6 +11,7 @@ import type {
   BehaviorResult,
   DetectionResult,
   VerifyPayload,
+  RetryConfig,
 } from "./types";
 
 // ── Inline worker source ───────────────────────────────────────────
@@ -112,10 +113,43 @@ function createSvgIcon(
   return svg;
 }
 
+// ── Retry Helper ──────────────────────────────────────────────────
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retryConfig: RetryConfig,
+): Promise<T> {
+  const maxRetries = retryConfig.maxRetries ?? 2;
+  const baseDelay = retryConfig.baseDelayMs ?? 500;
+
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err as Error;
+
+      // Don't retry on client errors (4xx)
+      if (lastError.message.includes("400") || lastError.message.includes("403") || lastError.message.includes("404")) {
+        throw lastError;
+      }
+
+      if (attempt < maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 // ── Janus Class ────────────────────────────────────────────────────
 
 export class Janus {
   private readonly config: JanusConfig;
+  private readonly retryConfig: RetryConfig;
   private behaviorCollector: BehaviorCollector;
 
   constructor(config: JanusConfig) {
@@ -128,6 +162,7 @@ export class Janus {
       throw new Error('[Janus] Invalid apiUrl');
     }
     this.config = config;
+    this.retryConfig = config.retry ?? {};
     this.behaviorCollector = new BehaviorCollector();
 
     // In managed mode behaviour is collected starting from construction.
@@ -154,7 +189,7 @@ export class Janus {
     // GDPR mode still collects all signals (they're hashed/aggregated, not personal data).
     // The server handles IP anonymization and data retention.
     const [challenge, fingerprint, detection] = await Promise.all([
-      this.requestChallenge(),
+      withRetry(() => this.requestChallenge(), this.retryConfig),
       collectFingerprint(),
       Promise.resolve(detectAutomation()),
     ]);
@@ -179,8 +214,8 @@ export class Janus {
     // Step 3 — solve PoW
     const pow = await this.solvePoW(challenge, signalRoot);
 
-    // Step 4 — submit
-    const result = await this.submitVerification({
+    // Step 4 — submit (with retry)
+    const result = await withRetry(() => this.submitVerification({
       siteKey: this.config.siteKey,
       pow: { ...pow, challengeId: challenge.challengeId },
       fingerprint,
@@ -188,7 +223,7 @@ export class Janus {
       detection,
       signalRoot,
       timestamp: Date.now(),
-    });
+    }), this.retryConfig);
 
     return result;
   }
@@ -375,12 +410,18 @@ export class Janus {
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
+      const message = body.message || `Verification failed: ${res.status}`;
+      // Throw on server errors so retry can catch them;
+      // client errors (4xx) are not retryable
+      if (res.status >= 500) {
+        throw new Error(message);
+      }
       return {
         success: false,
         token: "",
         riskScore: -1,
         action: "block",
-        error: body.message || `Verification failed: ${res.status}`,
+        error: message,
       } as VerifyResult;
     }
 

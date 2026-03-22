@@ -14,6 +14,7 @@ export type {
   BehaviorResult,
   DetectionResult,
   VerifyPayload,
+  RetryConfig,
 } from "./types";
 
 export { sha256, merkleRoot, generateKeyPair } from "./crypto";

@@ -2,6 +2,13 @@
 
 export type JanusMode = "invisible" | "managed";
 
+export interface RetryConfig {
+  /** Maximum number of retry attempts (default: 2) */
+  maxRetries?: number;
+  /** Base delay in ms for exponential backoff (default: 500) */
+  baseDelayMs?: number;
+}
+
 export interface JanusConfig {
   /** The site key issued from the Janus dashboard */
   siteKey: string;
@@ -9,6 +16,8 @@ export interface JanusConfig {
   apiUrl: string;
   /** Operation mode */
   mode: JanusMode;
+  /** Retry configuration for network failures */
+  retry?: RetryConfig;
 }
 
 // ── Verification Result ────────────────────────────────────────────

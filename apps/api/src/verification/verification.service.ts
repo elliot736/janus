@@ -15,6 +15,7 @@ import { FingerprintService } from './fingerprint.service';
 import { TokenService } from './token.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { GeoIpService } from '../geoip/geoip.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 
 interface VerifyParams {
   siteKey: string;
@@ -45,6 +46,7 @@ export class VerificationService {
     private readonly tokenService: TokenService,
     private readonly metricsService: MetricsService,
     private readonly geoIpService: GeoIpService,
+    private readonly webhooksService: WebhooksService,
   ) {}
 
   async verify(params: VerifyParams) {
@@ -201,6 +203,15 @@ export class VerificationService {
 
     this.metricsService.incrementVerification(action);
     this.metricsService.recordRiskScore(riskResult.score);
+
+    // Fire webhook for blocked verifications (non-blocking)
+    if (action === 'block') {
+      this.webhooksService.fire(site.id, 'verification.blocked', {
+        riskScore: riskResult.score,
+        anomalies: riskResult.anomalies,
+        countryCode: geoIp.countryCode,
+      });
+    }
 
     return {
       success: true,

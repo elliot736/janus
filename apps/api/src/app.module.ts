@@ -13,6 +13,7 @@ import { HealthModule } from './health/health.module';
 import { CleanupModule } from './cleanup/cleanup.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { GeoIpModule } from './geoip/geoip.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { GeoIpModule } from './geoip/geoip.module';
     CleanupModule,
     MetricsModule,
     GeoIpModule,
+    WebhooksModule,
   ],
 })
 export class AppModule {}

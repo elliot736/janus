@@ -10,13 +10,24 @@
   ],
   "scripts": {
     "build": "rollup -c rollup.config.mjs",
-    "dev": "rollup -c rollup.config.mjs --watch"
+    "dev": "rollup -c rollup.config.mjs --watch",
+    "size": "size-limit",
+    "size:check": "size-limit --limit 8KB"
   },
+  "size-limit": [
+    {
+      "path": "dist/janus.js",
+      "gzip": true,
+      "limit": "8 KB"
+    }
+  ],
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^11.1.6",
+    "@size-limit/file": "^12.0.1",
     "rollup": "^4.9.0",
     "rollup-plugin-dts": "^6.1.0",
+    "size-limit": "^12.0.1",
     "tslib": "^2.6.0",
     "typescript": "^5.3.0"
   },

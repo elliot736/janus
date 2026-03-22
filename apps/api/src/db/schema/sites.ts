@@ -19,6 +19,15 @@ export interface SiteSettings {
   };
   gdprMode?: boolean;
   blockedCountries?: string[];
+  /** Per-site rate limit: max requests per minute (default: 1000) */
+  rateLimitPerMinute?: number;
+  /** Per-site risk score weights (multipliers for each signal category) */
+  riskWeights?: {
+    pow?: number;
+    fingerprint?: number;
+    behavior?: number;
+    geoIp?: number;
+  };
 }
 
 export const sites = pgTable('sites', {

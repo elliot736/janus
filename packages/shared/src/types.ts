@@ -53,4 +53,11 @@ export interface SiteSettings {
     block: number;
   };
   blockedCountries?: string[];
+  rateLimitPerMinute?: number;
+  riskWeights?: {
+    pow?: number;
+    fingerprint?: number;
+    behavior?: number;
+    geoIp?: number;
+  };
 }

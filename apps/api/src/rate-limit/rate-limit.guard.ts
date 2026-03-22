@@ -4,14 +4,21 @@ import {
   ExecutionContext,
   HttpException,
   HttpStatus,
+  Inject,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { RateLimitService } from './rate-limit.service';
 import { extractClientIp } from '../common/utils/ip';
+import { DATABASE_TOKEN, type Database } from '../db/db.provider';
+import { sites } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
-  constructor(private readonly rateLimitService: RateLimitService) {}
+  constructor(
+    private readonly rateLimitService: RateLimitService,
+    @Inject(DATABASE_TOKEN) private readonly db: Database,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -38,11 +45,25 @@ export class RateLimitGuard implements CanActivate {
       );
     }
 
-    // Site-key-based rate limit: 1000 requests per minute
+    // Site-key-based rate limit: configurable per site (default: 1000/min)
     if (siteKey) {
+      let siteLimit = 1000;
+
+      try {
+        const [site] = await this.db
+          .select({ settings: sites.settings })
+          .from(sites)
+          .where(eq(sites.siteKey, siteKey));
+        if (site?.settings?.rateLimitPerMinute) {
+          siteLimit = site.settings.rateLimitPerMinute;
+        }
+      } catch {
+        // Use default if lookup fails
+      }
+
       const siteAllowed = await this.rateLimitService.checkLimit({
         key: `ratelimit:site:${siteKey}`,
-        limit: 1000,
+        limit: siteLimit,
         windowMs: 60_000,
       });
 

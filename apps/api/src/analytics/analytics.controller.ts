@@ -22,7 +22,7 @@ export class AnalyticsController {
       throw new UnauthorizedException('Authentication required');
     }
 
-    const numDays = days ? parseInt(days, 10) : 7;
+    const numDays = Math.max(1, Math.min(365, days ? parseInt(days, 10) || 7 : 7));
     return this.analyticsService.getSummary(
       siteId,
       session.user.id,
@@ -40,7 +40,7 @@ export class AnalyticsController {
       throw new UnauthorizedException('Authentication required');
     }
 
-    const numDays = days ? parseInt(days, 10) : 30;
+    const numDays = Math.max(1, Math.min(365, days ? parseInt(days, 10) || 30 : 30));
     return this.analyticsService.getRequestsPerDay(
       siteId,
       session.user.id,
@@ -58,7 +58,7 @@ export class AnalyticsController {
       throw new UnauthorizedException('Authentication required');
     }
 
-    const numDays = days ? parseInt(days, 10) : 7;
+    const numDays = Math.max(1, Math.min(365, days ? parseInt(days, 10) || 7 : 7));
     return this.analyticsService.getPassFailRatio(
       siteId,
       session.user.id,
@@ -76,7 +76,7 @@ export class AnalyticsController {
       throw new UnauthorizedException('Authentication required');
     }
 
-    const numDays = days ? parseInt(days, 10) : 7;
+    const numDays = Math.max(1, Math.min(365, days ? parseInt(days, 10) || 7 : 7));
     return this.analyticsService.getRiskDistribution(
       siteId,
       session.user.id,
@@ -95,8 +95,8 @@ export class AnalyticsController {
       throw new UnauthorizedException('Authentication required');
     }
 
-    const numDays = days ? parseInt(days, 10) : 7;
-    const numLimit = limit ? parseInt(limit, 10) : 10;
+    const numDays = Math.max(1, Math.min(365, days ? parseInt(days, 10) || 7 : 7));
+    const numLimit = Math.max(1, Math.min(100, limit ? parseInt(limit, 10) || 10 : 10));
     return this.analyticsService.getTopIps(
       siteId,
       session.user.id,

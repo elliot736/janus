@@ -34,10 +34,20 @@ export class ChallengeService {
 
     // Validate origin against site's allowed domains
     if (params.origin && site.domain?.length > 0) {
-      const originHost = new URL(params.origin).hostname;
-      const allowed = site.domain.some(
-        (d: string) => d === originHost || originHost.endsWith('.' + d),
-      );
+      let originHost: string;
+      try {
+        originHost = new URL(params.origin).hostname;
+      } catch {
+        throw new ForbiddenException('Invalid origin');
+      }
+      const originParts = originHost.split('.');
+      const allowed = site.domain.some((d: string) => {
+        if (d === originHost) return true;
+        const domainParts = d.split('.');
+        // Ensure the origin ends with the exact domain segments (not just string suffix)
+        if (originParts.length <= domainParts.length) return false;
+        return originParts.slice(-domainParts.length).join('.') === d;
+      });
       if (!allowed) {
         throw new ForbiddenException('Origin not allowed for this site');
       }

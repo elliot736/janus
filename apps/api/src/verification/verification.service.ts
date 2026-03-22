@@ -51,10 +51,19 @@ export class VerificationService {
 
     // 1b. Validate origin against site's allowed domains
     if (params.origin && site.domain?.length > 0) {
-      const originHost = new URL(params.origin).hostname;
-      const allowed = site.domain.some(
-        (d: string) => d === originHost || originHost.endsWith('.' + d),
-      );
+      let originHost: string;
+      try {
+        originHost = new URL(params.origin).hostname;
+      } catch {
+        throw new ForbiddenException('Invalid origin');
+      }
+      const originParts = originHost.split('.');
+      const allowed = site.domain.some((d: string) => {
+        if (d === originHost) return true;
+        const domainParts = d.split('.');
+        if (originParts.length <= domainParts.length) return false;
+        return originParts.slice(-domainParts.length).join('.') === d;
+      });
       if (!allowed) {
         throw new ForbiddenException('Origin not allowed for this site');
       }
@@ -189,12 +198,13 @@ export class VerificationService {
 
   private anonymizeIp(ip: string): string {
     if (ip.includes(':')) {
-      // IPv6: zero out last 80 bits
+      // IPv6: zero out to /48 — keep first 3 groups only (GDPR compliant)
       const parts = ip.split(':');
       return parts.slice(0, 3).join(':') + '::';
     }
-    // IPv4: zero out last octet
+    // IPv4: zero out last two octets for stronger anonymization
     const parts = ip.split('.');
+    parts[2] = '0';
     parts[3] = '0';
     return parts.join('.');
   }

@@ -5,13 +5,17 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as authSchema from '../db/schema/auth';
 
-const databaseUrl = process.env.DATABASE_URL!;
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error('DATABASE_URL environment variable is required');
 const client = postgres(databaseUrl);
 const db = drizzle(client);
 
+const betterAuthSecret = process.env.BETTER_AUTH_SECRET;
+if (!betterAuthSecret) throw new Error('BETTER_AUTH_SECRET environment variable is required');
+
 export const auth = betterAuth({
   appName: 'Janus',
-  secret: process.env.BETTER_AUTH_SECRET,
+  secret: betterAuthSecret,
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema: authSchema,

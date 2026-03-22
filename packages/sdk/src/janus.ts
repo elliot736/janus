@@ -85,6 +85,33 @@ async function computeSignalRoot(
   return merkleRoot(leaves);
 }
 
+function createSvgIcon(
+  d: string,
+  stroke: string,
+  strokeWidth: string,
+  linecap: string,
+): SVGSVGElement {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("width", "16");
+  svg.setAttribute("height", "16");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("fill", "none");
+
+  // d may contain multiple path definitions separated by 'M'
+  const paths = d.split(/(?=M)/).filter(Boolean);
+  for (const pathD of paths) {
+    const path = document.createElementNS(ns, "path");
+    path.setAttribute("d", pathD);
+    path.setAttribute("stroke", stroke);
+    path.setAttribute("stroke-width", strokeWidth);
+    path.setAttribute("stroke-linecap", linecap);
+    path.setAttribute("stroke-linejoin", linecap);
+    svg.appendChild(path);
+  }
+  return svg;
+}
+
 // ── Janus Class ────────────────────────────────────────────────────
 
 export class Janus {
@@ -92,6 +119,14 @@ export class Janus {
   private behaviorCollector: BehaviorCollector;
 
   constructor(config: JanusConfig) {
+    try {
+      const url = new URL(config.apiUrl);
+      if (url.protocol !== 'https:' && !url.hostname.match(/^(localhost|127\.0\.0\.1)$/)) {
+        console.warn('[Janus] apiUrl should use HTTPS in production');
+      }
+    } catch {
+      throw new Error('[Janus] Invalid apiUrl');
+    }
     this.config = config;
     this.behaviorCollector = new BehaviorCollector();
 
@@ -190,7 +225,11 @@ export class Janus {
     branding.style.cssText =
       "margin-left:auto;font-size:10px;color:#999;display:flex;flex-direction:column;" +
       "align-items:flex-end;line-height:1.3";
-    branding.innerHTML = "<strong style='font-size:11px;color:#555'>Janus</strong>Privacy & Terms";
+    const brandName = document.createElement("strong");
+    brandName.style.cssText = "font-size:11px;color:#555";
+    brandName.textContent = "Janus";
+    branding.appendChild(brandName);
+    branding.appendChild(document.createTextNode("Privacy & Terms"));
 
     wrapper.appendChild(checkbox);
     wrapper.appendChild(label);
@@ -205,9 +244,12 @@ export class Janus {
 
       // Spinner state
       checkbox.style.borderColor = "#3b82f6";
-      checkbox.innerHTML =
-        '<div style="width:14px;height:14px;border:2px solid #3b82f6;' +
-        'border-top-color:transparent;border-radius:50%;animation:janus-spin .6s linear infinite"></div>';
+      checkbox.textContent = "";
+      const spinner = document.createElement("div");
+      spinner.style.cssText =
+        "width:14px;height:14px;border:2px solid #3b82f6;" +
+        "border-top-color:transparent;border-radius:50%;animation:janus-spin .6s linear infinite";
+      checkbox.appendChild(spinner);
 
       // Inject keyframes if not already present
       if (!document.getElementById("janus-styles")) {
@@ -224,17 +266,17 @@ export class Janus {
         if (result.success) {
           checkbox.style.borderColor = "#22c55e";
           checkbox.style.background = "#22c55e";
-          checkbox.innerHTML =
-            '<svg width="16" height="16" viewBox="0 0 16 16" fill="none">' +
-            '<path d="M3 8l3.5 3.5L13 5" stroke="#fff" stroke-width="2.5" ' +
-            'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+          checkbox.textContent = "";
+          checkbox.appendChild(createSvgIcon(
+            "M3 8l3.5 3.5L13 5", "#fff", "2.5", "round",
+          ));
           wrapper.style.borderColor = "#22c55e";
         } else {
           checkbox.style.borderColor = "#ef4444";
-          checkbox.innerHTML =
-            '<svg width="16" height="16" viewBox="0 0 16 16" fill="none">' +
-            '<path d="M4 4l8 8M12 4l-8 8" stroke="#ef4444" stroke-width="2.5" ' +
-            'stroke-linecap="round"/></svg>';
+          checkbox.textContent = "";
+          checkbox.appendChild(createSvgIcon(
+            "M4 4l8 8M12 4l-8 8", "#ef4444", "2.5", "round",
+          ));
           wrapper.style.borderColor = "#ef4444";
           // Allow retry after a short delay
           setTimeout(() => {
@@ -247,7 +289,7 @@ export class Janus {
         }
       } catch {
         checkbox.style.borderColor = "#ef4444";
-        checkbox.innerHTML = "!";
+        checkbox.textContent = "!";
         setTimeout(() => {
           executing = false;
           checkbox.innerHTML = "";

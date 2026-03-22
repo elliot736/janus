@@ -28,6 +28,10 @@ jobs:
 
       - run: npm ci
 
+      - name: Audit dependencies
+        run: npm audit --audit-level=moderate
+        if: matrix.package == 'apps/api'
+
       - name: Typecheck ${{ matrix.package }}
         run: npx tsc --noEmit
         working-directory: ${{ matrix.package }}

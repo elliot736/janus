@@ -36,10 +36,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message: 'Internal server error',
       };
 
-      // Log unexpected errors with full stack trace
+      // Log unexpected errors — omit stack traces in production to prevent info leaks
+      const detail = process.env.NODE_ENV === 'production'
+        ? (exception instanceof Error ? exception.message : String(exception))
+        : (exception instanceof Error ? exception.stack : String(exception));
       this.logger.error(
-        `Unhandled exception on ${request.method} ${request.url}`,
-        exception instanceof Error ? exception.stack : String(exception),
+        `Unhandled exception on ${request.method} ${request.url.split('?')[0]}`,
+        detail,
       );
     }
 

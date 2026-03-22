@@ -2,6 +2,8 @@ import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { createHash, randomBytes } from 'crypto';
+import { writeFileSync } from 'fs';
+import { join } from 'path';
 import { sites, challenges, verifications, apiKeys } from './schema';
 
 function generateSiteKey(): string {
@@ -125,14 +127,7 @@ async function seed() {
     }
   }
 
-  console.log('Created API keys:\n');
-  console.log('+--------------------------+--------------------+--------------------------------------------------+');
-  console.log('| Site                     | Label              | Key                                              |');
-  console.log('+--------------------------+--------------------+--------------------------------------------------+');
-  for (const k of createdKeys) {
-    console.log(`| ${k.siteName.padEnd(24)} | ${k.label.padEnd(18)} | ${k.raw.padEnd(48)} |`);
-  }
-  console.log('+--------------------------+--------------------+--------------------------------------------------+\n');
+  console.log(`Created ${createdKeys.length} API keys across ${createdSites.length} sites.\n`);
 
   // ── 3. Create historical challenges and verifications ────────────────
 
@@ -208,27 +203,30 @@ async function seed() {
   console.log(`  Generated ${totalVerifications} verifications over 7 days`);
   console.log(`  Allow: ${allowCount} | Challenge: ${challengeCount} | Block: ${blockCount}\n`);
 
-  // ── 4. Print site credentials ────────────────────────────────────────
+  // ── 4. Print site credentials to a local file (not stdout) ──────────
 
-  console.log('Site credentials:\n');
-  console.log('+--------------------------+----------------------------------------------+');
-  console.log('| Site                     | Site Key                                     |');
-  console.log('+--------------------------+----------------------------------------------+');
-  for (const s of createdSites) {
-    console.log(`| ${s.name.padEnd(24)} | ${s.siteKey.padEnd(44)} |`);
-  }
-  console.log('+--------------------------+----------------------------------------------+\n');
+  const credentialsPath = join(__dirname, '..', '..', 'seed-credentials.json');
+  const credentials = {
+    sites: createdSites.map((s) => ({
+      name: s.name,
+      siteKey: s.siteKey,
+      secretKey: s.secretRaw,
+    })),
+    apiKeys: createdKeys.map((k) => ({
+      site: k.siteName,
+      label: k.label,
+      key: k.raw,
+    })),
+  };
+  writeFileSync(credentialsPath, JSON.stringify(credentials, null, 2));
+  console.log(`\nSite credentials written to: ${credentialsPath}`);
+  console.log('(Delete this file after copying your keys)\n');
 
-  console.log('Secret keys (save these, they cannot be retrieved later):\n');
-  for (const s of createdSites) {
-    console.log(`  ${s.name}: ${s.secretRaw}`);
-  }
-
-  console.log('\nInstructions:');
+  console.log('Instructions:');
   console.log('  1. Log in to the dashboard at http://localhost:3000');
   console.log('  2. Sites are pre-created with realistic verification history');
   console.log('  3. The Production Website has 7 days of traffic data for analytics');
-  console.log('  4. Use the site keys above to test the SDK integration');
+  console.log('  4. Check seed-credentials.json for site keys and secret keys');
   console.log('  5. Use the secret keys for server-side token validation via POST /api/v1/siteverify');
   console.log('  6. Use the API keys for programmatic access');
   console.log('  7. The Marketing Landing Page uses managed mode (checkbox widget)\n');

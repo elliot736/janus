@@ -7,18 +7,20 @@ import {
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request, Response } from 'express';
+import { extractClientIp } from '../utils/ip';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const ctx = context.switchToHttp();
     const request = ctx.getRequest<Request>();
-    const { method, url } = request;
+    const { method } = request;
 
-    const ip =
-      (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      request.ip ||
-      'unknown';
+    // Strip query parameters from logged path to avoid leaking secrets/tokens
+    const path = request.url.split('?')[0];
+
+    // Use the same trusted IP extraction as business logic
+    const ip = extractClientIp(request);
 
     const userAgent = request.headers['user-agent'] || 'unknown';
     const startTime = Date.now();
@@ -33,7 +35,7 @@ export class LoggingInterceptor implements NestInterceptor {
               level: 'info',
               msg: 'HTTP request',
               method,
-              path: url,
+              path,
               statusCode: response.statusCode,
               duration,
               ip,
@@ -50,12 +52,12 @@ export class LoggingInterceptor implements NestInterceptor {
               level: 'error',
               msg: 'HTTP request',
               method,
-              path: url,
+              path,
               statusCode,
               duration,
               ip,
               userAgent,
-              error: error.message,
+              error: statusCode >= 500 ? 'Internal server error' : error.message,
               timestamp: new Date().toISOString(),
             }) + '\n',
           );

@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomBytes } from 'crypto';
 import Redis from 'ioredis';
 
 interface CheckLimitParams {
@@ -53,7 +54,7 @@ export class RateLimitService implements OnModuleDestroy {
       pipeline.zcard(key);
 
       // Add current request
-      pipeline.zadd(key, now.toString(), `${now}:${Math.random()}`);
+      pipeline.zadd(key, now.toString(), `${now}:${randomBytes(8).toString('hex')}`);
 
       // Set TTL on the key to auto-cleanup
       pipeline.pexpire(key, windowMs);

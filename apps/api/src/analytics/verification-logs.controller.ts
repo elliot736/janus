@@ -25,8 +25,8 @@ export class VerificationLogsController {
       throw new UnauthorizedException('Authentication required');
     }
 
-    const numPage = page ? parseInt(page, 10) : 1;
-    const numPageSize = pageSize ? parseInt(pageSize, 10) : 50;
+    const numPage = Math.max(1, page ? parseInt(page, 10) || 1 : 1);
+    const numPageSize = Math.max(1, Math.min(100, pageSize ? parseInt(pageSize, 10) || 50 : 50));
     return this.analyticsService.getVerificationLogs(
       siteId,
       session.user.id,

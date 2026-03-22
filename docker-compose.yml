@@ -16,7 +16,7 @@ services:
   janus-api:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: docker/Dockerfile.api
     expose:
       - "3001"
     depends_on:
@@ -36,7 +36,7 @@ services:
   janus-dashboard:
     build:
       context: .
-      dockerfile: apps/dashboard/Dockerfile
+      dockerfile: docker/Dockerfile.dashboard
     expose:
       - "3000"
     environment:

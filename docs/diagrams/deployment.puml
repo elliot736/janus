@@ -1,0 +1,98 @@
+@startuml deployment
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Inter
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam nodeBackgroundColor #FFFFFF
+skinparam cloudBackgroundColor #F5F5F5
+skinparam arrowColor #3F3F46
+
+title Janus -- AWS Deployment Architecture
+
+cloud "Internet" as internet {
+  actor "Site Visitors" as visitors
+  actor "Site Owners" as owners
+}
+
+cloud "AWS" as aws {
+
+  node "Route 53" as r53 {
+    component "janus.example.com" as dns_root
+    component "api.janus.example.com" as dns_api
+    component "sdk.janus.example.com" as dns_sdk
+  }
+
+  node "CloudFront" as cf {
+    component "SDK CDN\nDistribution" as cdn
+  }
+
+  node "S3" as s3 {
+    storage "SDK Assets\njanus.js" as s3_sdk
+  }
+
+  node "VPC (10.0.0.0/16)" as vpc {
+
+    node "Public Subnets" as public {
+      node "ALB" as alb {
+        component "HTTPS :443\nACM Certificate" as https
+        component "/api/* -> API" as rule_api
+        component "/* -> Dashboard" as rule_dash
+      }
+      component "NAT Gateway" as nat
+    }
+
+    node "Private Subnets" as private {
+      node "ECS Fargate Cluster" as ecs {
+        node "API Service\n(1-4 tasks)" as api_svc {
+          component "NestJS\nPort 3001" as api_task
+        }
+        node "Dashboard Service\n(1-4 tasks)" as dash_svc {
+          component "Next.js\nPort 3000" as dash_task
+        }
+      }
+
+      node "Data Layer" as data {
+        database "RDS PostgreSQL 16\ndb.t4g.micro\nEncrypted" as rds
+        database "ElastiCache Redis 7\ncache.t4g.micro" as elasticache
+      }
+    }
+  }
+
+  node "ECR" as ecr {
+    storage "janus-api" as ecr_api
+    storage "janus-dashboard" as ecr_dash
+  }
+
+  node "Secrets Manager" as secrets {
+    storage "DB Password\nHMAC Secret\nToken Secret\nCookie Secret\nBetter Auth Secret" as secret_vals
+  }
+
+  node "CloudWatch" as cw {
+    storage "API Logs\nDashboard Logs" as logs
+  }
+}
+
+visitors --> dns_sdk : sdk.janus.example.com
+dns_sdk --> cdn
+cdn --> s3_sdk
+
+visitors --> dns_api : api.janus.example.com
+owners --> dns_root : janus.example.com
+dns_root --> alb
+dns_api --> alb
+alb --> api_task : /api/*
+alb --> dash_task : /*
+
+api_task --> rds
+api_task --> elasticache
+api_task --> cw : structured JSON logs
+dash_task --> cw
+
+api_task ..> secrets : inject at boot
+dash_task ..> secrets : inject at boot
+api_task ..> ecr_api : pull image
+dash_task ..> ecr_dash : pull image
+private --> nat : outbound traffic
+
+@enduml

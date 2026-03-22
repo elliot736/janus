@@ -1,0 +1,99 @@
+@startuml architecture
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam componentStyle rectangle
+skinparam defaultFontName Inter
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam packageBorderColor #D4D4D8
+skinparam componentBorderColor #A1A1AA
+skinparam databaseBorderColor #A1A1AA
+skinparam queueBorderColor #A1A1AA
+skinparam noteBorderColor #D4D4D8
+skinparam arrowColor #3F3F46
+
+title Janus -- System Architecture
+
+actor "Site Visitor" as visitor
+actor "Site Owner" as owner
+
+package "Client Side" #E8F5E9 {
+  component "Janus SDK\n~5KB gzipped" as sdk {
+    component "PoW Solver\n(Web Worker)" as pow
+    component "Fingerprint\nCollector" as fp
+    component "Behavior\nTracker" as behavior
+    component "Automation\nDetector" as detect
+  }
+}
+
+package "Janus Platform" #E3F2FD {
+  package "Nginx" #BBDEFB {
+    component "Reverse Proxy\nRate Limiting\nSecurity Headers" as nginx
+  }
+
+  package "API (NestJS)" #90CAF9 {
+    component "Challenge\nModule" as challenge_mod
+    component "Verification\nModule" as verify_mod
+    component "Sites\nModule" as sites_mod
+    component "Analytics\nModule" as analytics_mod
+    component "Auth\nModule" as auth_mod
+    component "Rate Limit\nModule" as ratelimit_mod
+    component "Health\nModule" as health_mod
+    component "Metrics\nModule" as metrics_mod
+    component "Cleanup\nModule" as cleanup_mod
+  }
+
+  package "Dashboard (Next.js)" #64B5F6 {
+    component "Site Management" as site_mgmt
+    component "Analytics Views" as analytics_ui
+    component "Settings" as settings_ui
+    component "Auth Pages" as auth_ui
+  }
+
+  database "PostgreSQL" as pg {
+    storage "sites" as t_sites
+    storage "challenges" as t_challenges
+    storage "verifications" as t_verifications
+    storage "api_keys" as t_apikeys
+    storage "user / session\n(Better Auth)" as t_auth
+  }
+
+  database "Redis" as redis {
+    storage "Nonce replay\nprotection" as r_nonce
+    storage "Rate limit\ncounters" as r_rate
+    storage "Fingerprint\nvelocity" as r_velocity
+  }
+}
+
+package "Customer Backend" #FFF3E0 {
+  component "Server-side\nToken Validation" as customer
+}
+
+visitor --> sdk : loads
+sdk --> nginx : POST /challenge\nPOST /verify
+nginx --> challenge_mod
+nginx --> verify_mod
+challenge_mod --> pg
+challenge_mod --> redis
+verify_mod --> pg
+verify_mod --> redis
+verify_mod --> ratelimit_mod
+sdk --> customer : token
+customer --> nginx : POST /siteverify
+nginx --> verify_mod
+
+owner --> auth_ui : login
+auth_ui --> auth_mod
+owner --> site_mgmt
+site_mgmt --> sites_mod
+sites_mod --> pg
+owner --> analytics_ui
+analytics_ui --> analytics_mod
+analytics_mod --> pg
+
+cleanup_mod --> pg : delete expired\nchallenges
+health_mod --> pg : connectivity check
+health_mod --> redis : connectivity check
+metrics_mod --> metrics_mod : in-memory counters
+
+@enduml

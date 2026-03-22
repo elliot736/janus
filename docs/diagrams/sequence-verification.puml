@@ -1,0 +1,103 @@
+@startuml sequence-verification
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Inter
+skinparam shadowing false
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceParticipantBorderColor #A1A1AA
+skinparam sequenceLifeLineBorderColor #D4D4D8
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+title Janus -- Verification Flow
+
+actor "Browser" as browser
+participant "Janus SDK" as sdk
+participant "Web Worker" as worker
+participant "Janus API" as api
+database "PostgreSQL" as pg
+database "Redis" as redis
+participant "Customer\nBackend" as backend
+
+== Page Load ==
+
+browser -> sdk : new Janus({ siteKey, apiUrl })
+activate sdk
+sdk -> sdk : start behavior collection\n(mouse, keyboard, scroll)
+
+== Form Submit ==
+
+browser -> sdk : execute()
+activate sdk
+
+sdk -> api : POST /api/v1/challenge\nX-Site-Key: jns_site_live_xxx
+activate api
+api -> api : validate origin\nagainst site domains
+api -> pg : lookup site by siteKey
+api -> api : generate HMAC-bound challenge\nHMAC(siteId + IP + timestamp + nonce)
+api -> pg : store challenge\n(status: pending, TTL: 5min)
+api -> redis : check rate limit
+api --> sdk : { challengeId, challenge, difficulty, mode }
+deactivate api
+
+par Collect Signals
+  sdk -> sdk : collect fingerprint\n(canvas, WebGL, audio, fonts)
+  sdk -> sdk : detect automation\n(webdriver, phantom, selenium)
+end
+
+sdk -> sdk : compute Merkle root\nof all signal hashes
+
+sdk -> worker : solve PoW\n{ challenge, difficulty }
+activate worker
+worker -> worker : SHA-256 brute force\nfind nonce with\nN leading zeros
+worker --> sdk : { nonce, hash, timeMs }
+deactivate worker
+
+sdk -> api : POST /api/v1/verify\nX-Site-Key: jns_site_live_xxx\n{ challengeId, nonce, solveTimeMs,\n  fingerprint, behaviorData }
+activate api
+
+api -> pg : lookup challenge
+api -> api : verify challenge is pending,\nnot expired, IP matches
+
+api -> redis : check nonce not replayed\n(SET NX with TTL)
+api -> api : verify SHA-256 hash\nhas required leading zeros
+
+api -> api : validate solve time\n(reject < 50ms or > 300s)
+
+api -> pg : mark challenge as solved
+
+api -> redis : check fingerprint velocity\n(IPs per fingerprint,\nfingerprints per IP)
+
+api -> api : score risk (0-100)\n- PoW timing\n- fingerprint consistency\n- behavior entropy\n- automation markers\n- mode-aware weighting
+
+api -> api : determine action\nallow (<30) / challenge (30-69) / block (>=70)
+
+api -> api : issue HMAC token\nbound to IP + fingerprint
+
+api -> pg : store verification record
+
+api --> sdk : { success, token, riskScore, action }
+deactivate api
+
+sdk --> browser : { success, token, riskScore, action }
+deactivate sdk
+
+== Server-side Validation ==
+
+browser -> backend : submit form + janus token
+activate backend
+
+backend -> api : POST /api/v1/siteverify\n{ secret: jns_secret_live_xxx,\n  token: <token> }
+activate api
+api -> api : hash secret, lookup site
+api -> api : verify HMAC signature\n(constant-time comparison)
+api -> api : check token not expired
+api -> api : check site ownership
+api --> backend : { success, action,\n  risk_score, hostname }
+deactivate api
+
+backend -> backend : decide: allow / block / challenge
+backend --> browser : response
+deactivate backend
+
+@enduml

@@ -1,0 +1,120 @@
+@startuml data-model
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Inter
+skinparam shadowing false
+skinparam classBackgroundColor #FFFFFF
+skinparam classBorderColor #A1A1AA
+skinparam arrowColor #3F3F46
+
+title Janus -- Data Model
+
+entity "user" as user {
+  * id : text <<PK>>
+  --
+  * name : text
+  * email : text <<unique>>
+  * email_verified : boolean
+  image : text
+  two_factor_enabled : boolean
+  * created_at : timestamp
+  * updated_at : timestamp
+}
+
+entity "session" as session {
+  * id : text <<PK>>
+  --
+  * token : text <<unique>>
+  * user_id : text <<FK>>
+  * expires_at : timestamp
+  ip_address : text
+  user_agent : text
+  * created_at : timestamp
+  * updated_at : timestamp
+}
+
+entity "account" as account {
+  * id : text <<PK>>
+  --
+  * account_id : text
+  * provider_id : text
+  * user_id : text <<FK>>
+  password : text
+  access_token : text
+  refresh_token : text
+  * created_at : timestamp
+  * updated_at : timestamp
+}
+
+entity "two_factor" as twofactor {
+  * id : text <<PK>>
+  --
+  * secret : text
+  * backup_codes : text
+  * user_id : text <<FK>>
+}
+
+entity "sites" as sites {
+  * id : uuid <<PK>>
+  --
+  * name : varchar(255)
+  * domain : text[]
+  * site_key : varchar(255) <<unique>>
+  * secret_key : varchar(255) (SHA-256 hash)
+  * owner_id : text <<FK to user>>
+  settings : jsonb
+  * is_active : boolean
+  * created_at : timestamp
+  * updated_at : timestamp
+}
+
+entity "challenges" as challenges {
+  * id : uuid <<PK>>
+  --
+  * site_id : uuid <<FK>>
+  * challenge : varchar(255) (HMAC)
+  * difficulty : integer
+  * ip_address : varchar(45)
+  ja3_hash : varchar(255)
+  * status : text (pending/solved/expired)
+  * expires_at : timestamp
+  * created_at : timestamp
+}
+
+entity "verifications" as verifications {
+  * id : uuid <<PK>>
+  --
+  * site_id : uuid <<FK>>
+  * challenge_id : uuid <<FK>>
+  * token : varchar(500)
+  * risk_score : integer (0-100)
+  * action : text (allow/challenge/block)
+  fingerprint_hash : varchar(255)
+  behavior_score : integer
+  anomalies : jsonb
+  pow_time_ms : integer
+  * ip_address : varchar(45)
+  * created_at : timestamp
+}
+
+entity "api_keys" as apikeys {
+  * id : uuid <<PK>>
+  --
+  * site_id : uuid <<FK, CASCADE>>
+  * user_id : text <<FK to user>>
+  * key_hash : varchar(255) (SHA-256)
+  * label : varchar(255)
+  last_used_at : timestamp
+  * created_at : timestamp
+}
+
+user ||--o{ session : has
+user ||--o{ account : has
+user ||--o{ twofactor : has
+user ||--o{ sites : owns
+sites ||--o{ challenges : receives
+sites ||--o{ verifications : logs
+sites ||--o{ apikeys : has
+challenges ||--o| verifications : produces
+
+@enduml

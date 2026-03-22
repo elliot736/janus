@@ -1,0 +1,85 @@
+@startuml sequence-dashboard
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Inter
+skinparam shadowing false
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceParticipantBorderColor #A1A1AA
+skinparam sequenceLifeLineBorderColor #D4D4D8
+
+title Janus -- Dashboard Authentication and Site Management
+
+actor "Site Owner" as owner
+participant "Dashboard\n(Next.js)" as dash
+participant "Janus API\n(NestJS)" as api
+participant "Better Auth" as auth
+database "PostgreSQL" as pg
+
+== Registration ==
+
+owner -> dash : navigate to /register
+owner -> dash : submit name, email, password
+dash -> api : POST /api/auth/sign-up/email\n{ name, email, password }
+api -> auth : create user
+auth -> pg : insert into user, account tables\n(password hashed with Argon2)
+auth --> api : { token, user }
+api --> dash : set session cookie (JWE)
+dash --> owner : redirect to /dashboard
+
+== Login ==
+
+owner -> dash : navigate to /login
+owner -> dash : submit email, password
+dash -> api : POST /api/auth/sign-in/email\n{ email, password }
+api -> auth : verify credentials
+auth -> pg : lookup user, verify password
+auth --> api : { token, user }
+
+alt 2FA Enabled
+  api --> dash : { twoFactorRedirect: true }
+  dash --> owner : show TOTP input
+  owner -> dash : enter TOTP code
+  dash -> api : POST /api/auth/two-factor/verify-totp\n{ code }
+  api -> auth : verify TOTP
+  auth --> api : { session }
+end
+
+api --> dash : set session cookie
+dash --> owner : redirect to /dashboard
+
+== Create Site ==
+
+owner -> dash : fill site name + domains
+dash -> api : POST /api/v1/sites\n{ name, domain: ["example.com"] }
+activate api
+api -> api : validate session
+api -> api : generate siteKey\n(jns_site_live_xxx)
+api -> api : generate secretKey\n(jns_secret_live_xxx)\nhash with SHA-256
+api -> pg : insert site
+api --> dash : { id, siteKey, secretKey, ... }
+deactivate api
+dash --> owner : show site detail\nwith keys + integration code
+
+== Create API Key ==
+
+owner -> dash : click "Create Key"\nenter label
+dash -> api : POST /api/v1/sites/:id/api-keys\n{ label: "Production" }
+activate api
+api -> api : validate site ownership
+api -> api : generate key\n(jns_api_xxx)\nhash with SHA-256
+api -> pg : insert api_key
+api --> dash : { id, key, label }
+deactivate api
+dash --> owner : show key once\n(copy to clipboard)
+
+== View Analytics ==
+
+owner -> dash : navigate to site analytics
+dash -> api : GET /api/v1/analytics/:siteId/summary?days=7
+dash -> api : GET /api/v1/analytics/:siteId/requests-per-day?days=7
+dash -> api : GET /api/v1/analytics/:siteId/risk-distribution?days=7
+api -> pg : aggregate queries
+api --> dash : { verifications, challenges, charts }
+dash --> owner : render charts + stats
+
+@enduml

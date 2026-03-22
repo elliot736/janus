@@ -1,0 +1,46 @@
+@startuml how-it-works
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Inter
+skinparam shadowing false
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceParticipantBorderColor #A1A1AA
+skinparam sequenceLifeLineBorderColor #D4D4D8
+skinparam sequenceMessageAlign center
+
+title How Janus Works
+
+participant "Browser" as browser
+participant "Janus SDK\n(~5KB)" as sdk
+participant "Janus API" as api
+participant "Your Server" as server
+
+browser -> sdk : 1. load SDK
+activate sdk
+
+sdk -> api : 2. request PoW challenge
+activate api
+api --> sdk : 3. challenge + difficulty
+deactivate api
+
+sdk -> sdk : solve PoW (Web Worker)\ncollect fingerprint\ntrack behavior\ndetect automation
+
+sdk -> api : 4. solution + all signals
+activate api
+api -> api : verify PoW\nscore risk (0-100)
+api --> sdk : 5. signed token + risk score
+deactivate api
+
+sdk --> browser : token ready
+deactivate sdk
+
+browser -> server : 6. form submission + token
+activate server
+server -> api : 7. POST /siteverify
+activate api
+api --> server : 8. { success, action, risk_score }
+deactivate api
+server --> browser : response
+deactivate server
+
+@enduml

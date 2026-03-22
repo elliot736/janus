@@ -1,4 +1,4 @@
 {
   "title": "Getting Started",
-  "pages": ["quickstart", "docker", "aws", "configuration"]
+  "pages": ["quickstart", "docker", "coolify", "aws", "configuration"]
 }

@@ -1,0 +1,123 @@
+---
+title: Coolify Deployment
+description: Deploy Janus on your own server using Coolify — an open-source, self-hosted alternative to Vercel/Netlify.
+---
+
+[Coolify](https://coolify.io) is an open-source, self-hosted PaaS. It runs on any VPS and manages Docker deployments, databases, SSL, and reverse proxying. Perfect for Janus since both are self-hosted.
+
+<Callout title="Why Coolify">
+  Coolify gives you the convenience of one-click deploys on infrastructure you own. No vendor lock-in, no usage fees — just your server.
+</Callout>
+
+## Prerequisites
+
+- A server with [Coolify installed](https://coolify.io/docs/installation)
+- At least 2GB RAM and 2 vCPUs (4GB recommended)
+- A domain pointing to your server (for SSL)
+
+## Step 1: Create resources
+
+In the Coolify dashboard, create the backing services first:
+
+<Steps>
+
+<Step>
+### PostgreSQL
+Go to **Resources** → **New** → **Database** → **PostgreSQL 16**. Note the connection string from the database settings.
+</Step>
+
+<Step>
+### Redis
+Go to **Resources** → **New** → **Database** → **Redis 7**. Note the connection string.
+</Step>
+
+</Steps>
+
+## Step 2: Deploy the API
+
+<Steps>
+
+<Step>
+### Create the service
+Go to **Resources** → **New** → **Docker Compose**. Point it to your Janus repository URL:
+
+```
+https://github.com/elliot736/janus
+```
+</Step>
+
+<Step>
+### Configure the build
+Set the Dockerfile path to `docker/Dockerfile.api` and the build context to `.` (root).
+</Step>
+
+<Step>
+### Set environment variables
+
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | Connection string from Step 1 |
+| `REDIS_URL` | Connection string from Step 1 |
+| `HMAC_SECRET` | Generate: `openssl rand -hex 32` |
+| `TOKEN_SECRET` | Generate: `openssl rand -hex 32` |
+| `COOKIE_SECRET` | Generate: `openssl rand -hex 32` |
+| `BETTER_AUTH_SECRET` | Generate: `openssl rand -hex 32` |
+| `CORS_ORIGIN` | Your dashboard URL (e.g., `https://janus.example.com`) |
+| `NODE_ENV` | `production` |
+| `PORT` | `3001` |
+
+</Step>
+
+<Step>
+### Set the domain
+Under **Settings** → **Domains**, add your API domain (e.g., `api.janus.example.com`). Coolify handles SSL automatically via Let's Encrypt.
+</Step>
+
+<Step>
+### Set health check
+Under **Health Check**, set the path to `/health` and port to `3001`.
+</Step>
+
+</Steps>
+
+## Step 3: Deploy the Dashboard
+
+Repeat the same process:
+
+- **Dockerfile path**: `docker/Dockerfile.dashboard`
+- **Build context**: `.`
+- **Environment variables**:
+
+| Variable | Value |
+|----------|-------|
+| `NEXT_PUBLIC_API_URL` | Your API URL (e.g., `https://api.janus.example.com`) |
+| `BETTER_AUTH_URL` | Internal API URL or same as above |
+| `NODE_ENV` | `production` |
+
+- **Domain**: `janus.example.com`
+
+## Step 4: Push the schema
+
+After the API is running, open a terminal to the API container (Coolify dashboard → API service → **Terminal**) and run:
+
+```bash
+npx drizzle-kit push
+```
+
+## Alternative: Docker Compose in Coolify
+
+Coolify also supports deploying a full `docker-compose.yml` as a single stack. Point Coolify at the repo and select the compose file — it will deploy all 5 services (Nginx, API, Dashboard, Postgres, Redis) together.
+
+<Callout type="info" title="Compose deployment">
+  When using Docker Compose mode, set all environment variables in Coolify's **Environment** tab. Coolify will inject them into the compose stack automatically.
+</Callout>
+
+## Recommended server sizing
+
+| Traffic | Server | Estimated cost |
+|---------|--------|---------------|
+| Low (< 10k verifications/day) | 2 vCPU, 4GB RAM | ~$12/mo (Hetzner) |
+| Medium (10k-100k/day) | 4 vCPU, 8GB RAM | ~$24/mo (Hetzner) |
+| High (100k+/day) | 8 vCPU, 16GB RAM | ~$48/mo (Hetzner) |
+
+These costs cover the entire stack including Coolify, Janus, PostgreSQL, and Redis on a single server.

@@ -2,7 +2,7 @@
   <img src="https://img.shields.io/badge/status-beta-blue" alt="Status" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
   <img src="https://img.shields.io/badge/SDK_size-~5KB_gzipped-orange" alt="SDK Size" />
-  <img src="https://img.shields.io/badge/tests-92_passing-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-118_passing-brightgreen" alt="Tests" />
 </p>
 
 # Janus
@@ -59,11 +59,16 @@ The server scores each request from 0 (human) to 100 (bot) and returns a signed 
 - **Site-scoped API keys** with SHA-256 hashing and last-used tracking
 - **Two-factor authentication** (TOTP) for dashboard accounts
 - **Domain allowlisting** with origin validation on every challenge and verification request
-- **Two-tier rate limiting** at both Nginx and application layers (per IP, per site, per fingerprint)
-- **Prometheus metrics** at `/metrics` for monitoring verification rates, risk distributions, and challenge counts
+- **Two-tier rate limiting** at both Nginx and application layers (per IP, per site, per fingerprint) with circuit breaker for Redis failures
+- **Per-site rate limits and risk weights** configurable via dashboard or API for independent sensitivity tuning
+- **Prometheus metrics** at `/metrics` with Redis-backed persistence across restarts
+- **Real-time analytics** via Server-Sent Events at `/api/v1/analytics/:siteId/stream`
+- **Webhook notifications** for blocked verifications with HMAC-signed payloads
 - **Health checks** at `/health` and `/ready` with database and Redis connectivity verification
+- **OpenAPI/Swagger docs** auto-generated at `/docs` in development
 - **Automatic cleanup** of expired challenges every 5 minutes
-- **Structured JSON logging** for production log aggregation
+- **Structured JSON logging** with correlation IDs for end-to-end request tracing
+- **Versioned SDK CDN paths** (`/sdk/v1/janus.js`) with immutable caching for pinned deployments
 
 ### Security
 
@@ -75,6 +80,8 @@ The server scores each request from 0 (human) to 100 (bot) and returns a signed 
 - Secret keys and API keys stored as SHA-256 hashes, never in plaintext
 - Fingerprint payloads size-limited to 64KB to prevent abuse
 - Nonce replay protection via Redis SET NX with TTL
+- SDK retry with exponential backoff for network failures, no retry on 4xx client errors
+- Webhook payloads signed with HMAC-SHA256 for receiver authenticity verification
 
 ---
 
@@ -449,7 +456,7 @@ Four GitHub Actions workflows handle the full lifecycle:
 
 | Workflow            | Trigger                 | Steps                                                                                    |
 | ------------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
-| **ci.yml**          | PR / push to main       | Type-check all packages, build, run 92 unit tests                                        |
+| **ci.yml**          | PR / push to main       | Type-check all packages, build, run 118 tests, check SDK size                            |
 | **deploy.yml**      | Push to main            | Build Docker images, push to ECR, deploy to ECS, upload SDK to S3, invalidate CloudFront |
 | **sdk-publish.yml** | Tag `sdk-v*`            | Verify bundle < 10KB gzipped, publish to npm                                             |
 | **terraform.yml**   | Changes in `terraform/` | Plan on PR (comment on PR), apply on merge                                               |
@@ -567,7 +574,7 @@ janus/
 | CI/CD          | GitHub Actions, OIDC for AWS                  |
 | Monorepo       | Turborepo                                     |
 | GeoIP          | MaxMind GeoLite2 (self-hosted, GDPR-safe)     |
-| Testing        | Jest, 92 unit tests                           |
+| Testing        | Jest, 118 tests (API + Dashboard)             |
 
 ---
 
@@ -585,11 +592,18 @@ jns_api_xxxx            API key (site-scoped, stored as SHA-256 hash)
 
 ```bash
 cd apps/api
-npm test            # 92 tests
+npm test            # 92 API tests + 26 dashboard tests
 npm run test:cov    # with coverage report
 ```
 
-Tests cover risk scoring (including GeoIP signals), GeoIP service, token issuance and verification, PoW validation, challenge service, verification orchestration, and site management. All external dependencies (database, Redis, MaxMind) are mocked.
+**API tests** cover risk scoring (including GeoIP signals), GeoIP service, token issuance and verification, PoW validation, challenge service, verification orchestration, and site management. All external dependencies (database, Redis, MaxMind) are mocked.
+
+**Dashboard tests** cover UI components (StatCard, ErrorState, EmptyState, LoadingState), utility functions, and the API client (fetch wrapper, error handling, auth redirects).
+
+```bash
+cd apps/dashboard
+npm test            # 26 dashboard tests
+```
 
 ---
 

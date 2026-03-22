@@ -15,6 +15,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { GeoIpModule } from './geoip/geoip.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { PluginsModule } from './plugins/plugins.module';
+import { AlertingModule } from './alerting/alerting.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { PluginsModule } from './plugins/plugins.module';
     GeoIpModule,
     WebhooksModule,
     PluginsModule,
+    AlertingModule,
   ],
 })
 export class AppModule {}

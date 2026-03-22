@@ -18,6 +18,7 @@ import { GeoIpService } from '../geoip/geoip.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 import { AdaptiveDifficultyService } from '../challenge/adaptive-difficulty.service';
 import { PluginRegistryService } from '../plugins/plugin-registry.service';
+import { AlertingService } from '../alerting/alerting.service';
 
 interface VerifyParams {
   siteKey: string;
@@ -51,6 +52,7 @@ export class VerificationService {
     private readonly webhooksService: WebhooksService,
     private readonly adaptiveDifficulty: AdaptiveDifficultyService,
     private readonly pluginRegistry: PluginRegistryService,
+    private readonly alertingService: AlertingService,
   ) {}
 
   async verify(params: VerifyParams) {
@@ -233,13 +235,21 @@ export class VerificationService {
     // Record outcome for adaptive difficulty (non-blocking)
     this.adaptiveDifficulty.recordOutcome(site.id, action);
 
-    // Fire webhook for blocked verifications (non-blocking)
+    // Fire webhook and email alert for blocked verifications (non-blocking)
     if (action === 'block') {
       this.webhooksService.fire(site.id, 'verification.blocked', {
         riskScore: riskResult.score,
         anomalies: riskResult.anomalies,
         countryCode: geoIp.countryCode,
       });
+      this.alertingService.alertHighRiskVerification(
+        site.id,
+        site.name,
+        riskResult.score,
+        riskResult.anomalies,
+        geoIp.countryCode,
+        gdprMode ? storedIp : params.ipAddress,
+      );
     }
 
     return {

@@ -19,6 +19,7 @@ describe('VerificationService', () => {
   let mockWebhooksService: any;
   let mockAdaptiveDifficulty: any;
   let mockPluginRegistry: any;
+  let mockAlertingService: any;
 
   const fakeSite = {
     id: 'site-uuid-1',
@@ -147,6 +148,12 @@ describe('VerificationService', () => {
       execute: jest.fn().mockResolvedValue({ totalAdjustment: 0, anomalies: [] }),
     };
 
+    mockAlertingService = {
+      alertHighRiskVerification: jest.fn(),
+      alertBlockRateSpike: jest.fn(),
+      sendAlert: jest.fn(),
+    };
+
     service = new VerificationService(
       mockDb,
       mockSitesService,
@@ -160,6 +167,7 @@ describe('VerificationService', () => {
       mockWebhooksService,
       mockAdaptiveDifficulty,
       mockPluginRegistry,
+      mockAlertingService,
     );
   });
 

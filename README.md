@@ -2,7 +2,7 @@
   <img src="https://img.shields.io/badge/status-beta-blue" alt="Status" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
   <img src="https://img.shields.io/badge/SDK_size-~5KB_gzipped-orange" alt="SDK Size" />
-  <img src="https://img.shields.io/badge/tests-154_passing-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-168_passing-brightgreen" alt="Tests" />
 </p>
 
 # Janus
@@ -71,6 +71,7 @@ The server scores each request from 0 (human) to 100 (bot) and returns a signed 
 - **Versioned SDK CDN paths** (`/sdk/v1/janus.js`) with immutable caching for pinned deployments
 - **Plugin system** for custom risk scoring logic with global and site-scoped plugins, priority ordering, and error isolation
 - **Adaptive PoW difficulty** that auto-increases challenge difficulty when a site is under attack
+- **Email alerting** via SMTP with per-event throttling for blocked verifications and block rate spikes
 
 ### Security
 
@@ -379,6 +380,69 @@ Plugins receive a `RiskPluginContext` with:
 
 ---
 
+## Email Alerting
+
+Janus can send email alerts when security events occur — blocked verifications, block rate spikes, adaptive difficulty changes, and circuit breaker activations. Alerts are throttled per event type per site to prevent inbox flooding during sustained attacks.
+
+### Setup
+
+Configure these environment variables to enable email alerting:
+
+```bash
+SMTP_HOST=smtp.gmail.com          # SMTP server hostname
+SMTP_PORT=587                     # SMTP port (587 for TLS, 465 for SSL)
+SMTP_USER=janus@yourcompany.com   # SMTP username
+SMTP_PASS=app-password            # SMTP password or app-specific password
+SMTP_FROM=janus@yourcompany.com   # Sender address
+ALERT_EMAIL=security@yourcompany.com  # Recipient address
+ALERT_THROTTLE_SECONDS=300        # Min seconds between same alert (default: 5 min)
+```
+
+If `SMTP_HOST` is not set, alerting is silently disabled. The SMTP connection is verified on startup — check logs for confirmation.
+
+### Alert types
+
+| Event | When it fires | What's included |
+|-------|---------------|-----------------|
+| `verification_blocked` | A verification is blocked (risk score above block threshold) | Risk score, anomalies, country code, IP address |
+| `block_rate_spike` | Adaptive difficulty detects elevated block rate | Block rate %, effective difficulty |
+| `adaptive_difficulty_elevated` | PoW difficulty increases due to attack | Base difficulty, bonus, new effective level |
+| `circuit_breaker_opened` | Redis rate limiter circuit breaker opens | Failure count, degraded duration |
+
+### Throttling
+
+Alerts are throttled per `event + siteId` combination. If a site is under attack generating hundreds of blocks per minute, you'll receive one `verification_blocked` email per throttle window (default: 5 minutes), not one per block. Different event types and different sites are throttled independently.
+
+### Email format
+
+Alerts are sent as styled HTML emails with a dark theme matching the Janus dashboard:
+
+- Subject: `[Janus] Verification Blocked — Production`
+- Body: site name, event summary, detail table with all relevant fields
+- Footer: link to configure alerting
+
+### Programmatic usage
+
+You can also send custom alerts from plugins or custom modules:
+
+```typescript
+import { AlertingService } from './alerting';
+
+// In your service constructor:
+constructor(private readonly alerting: AlertingService) {}
+
+// Send a custom alert:
+await this.alerting.sendAlert({
+  event: 'block_rate_spike',
+  siteId: 'site-uuid',
+  siteName: 'Production',
+  summary: 'Block rate at 45%',
+  details: { blockRate: '45%', effectiveDifficulty: 7 },
+});
+```
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -542,7 +606,7 @@ Four GitHub Actions workflows handle the full lifecycle:
 
 | Workflow            | Trigger                 | Steps                                                                                    |
 | ------------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
-| **ci.yml**          | PR / push to main       | Type-check all packages, build, run 154 tests, check SDK size                            |
+| **ci.yml**          | PR / push to main       | Type-check all packages, build, run 168 tests, check SDK size                            |
 | **deploy.yml**      | Push to main            | Build Docker images, push to ECR, deploy to ECS, upload SDK to S3, invalidate CloudFront |
 | **sdk-publish.yml** | Tag `sdk-v*`            | Verify bundle < 10KB gzipped, publish to npm                                             |
 | **terraform.yml**   | Changes in `terraform/` | Plan on PR (comment on PR), apply on merge                                               |
@@ -621,6 +685,7 @@ janus/
 │   │       ├── cleanup/        Expired challenge cron
 │   │       ├── geoip/          GeoIP lookups (MaxMind GeoLite2)
 │   │       ├── plugins/        Risk scoring plugin system
+│   │       ├── alerting/       Email alerting with SMTP
 │   │       ├── webhooks/       Webhook delivery service
 │   │       └── db/             Drizzle schema
 │   └── dashboard/          Next.js admin UI
@@ -662,7 +727,7 @@ janus/
 | CI/CD          | GitHub Actions, OIDC for AWS                  |
 | Monorepo       | Turborepo                                     |
 | GeoIP          | MaxMind GeoLite2 (self-hosted, GDPR-safe)     |
-| Testing        | Jest, 154 tests (API + Dashboard)             |
+| Testing        | Jest, 168 tests (API + Dashboard)             |
 
 ---
 
@@ -680,7 +745,7 @@ jns_api_xxxx            API key (site-scoped, stored as SHA-256 hash)
 
 ```bash
 cd apps/api
-npm test            # 128 API tests + 26 dashboard tests
+npm test            # 142 API tests + 26 dashboard tests
 npm run test:cov    # with coverage report
 ```
 

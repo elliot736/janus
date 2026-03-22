@@ -14,9 +14,11 @@ export const dbProvider: Provider = {
   useFactory: (configService: ConfigService) => {
     const databaseUrl = configService.getOrThrow<string>('DATABASE_URL');
     const client = postgres(databaseUrl, {
-      max: 20,
-      idle_timeout: 20,
-      connect_timeout: 10,
+      max: parseInt(configService.get<string>('DB_POOL_MAX') ?? '20', 10),
+      idle_timeout: parseInt(configService.get<string>('DB_POOL_IDLE_TIMEOUT') ?? '20', 10),
+      connect_timeout: parseInt(configService.get<string>('DB_POOL_CONNECT_TIMEOUT') ?? '10', 10),
+      max_lifetime: parseInt(configService.get<string>('DB_POOL_MAX_LIFETIME') ?? '1800', 10),
+      prepare: true,
     });
     return drizzle(client, { schema });
   },

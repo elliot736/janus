@@ -11,6 +11,12 @@ export const metadata = {
     template: '%s | Janus Docs',
   },
   description: 'Open-source bot detection platform. Alternative to Cloudflare Turnstile and reCAPTCHA.',
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: '16x16' },
+    ],
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

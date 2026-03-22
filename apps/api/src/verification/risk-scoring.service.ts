@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
+interface GeoIpSignals {
+  countryCode: string | null;
+  isDatacenter: boolean;
+  isVpn: boolean;
+  isProxy: boolean;
+}
+
 interface ScoreParams {
   solveTimeMs?: number;
   behaviorData?: Record<string, unknown>;
@@ -8,6 +15,8 @@ interface ScoreParams {
   ipAddress: string;
   ja3Hash?: string | null;
   mode?: string;
+  geoIp?: GeoIpSignals;
+  blockedCountries?: string[];
 }
 
 interface ScoreResult {
@@ -95,6 +104,32 @@ export class RiskScoringService {
       // Missing TLS fingerprint — can indicate non-browser client
       score += 5;
       anomalies.push('missing_ja3');
+    }
+
+    // --- GeoIP signals ---
+    if (params.geoIp) {
+      if (params.geoIp.isDatacenter) {
+        score += 15;
+        anomalies.push('datacenter_ip');
+      }
+      if (params.geoIp.isVpn) {
+        score += 10;
+        anomalies.push('vpn_detected');
+      }
+      if (params.geoIp.isProxy) {
+        score += 10;
+        anomalies.push('proxy_detected');
+      }
+
+      // Blocked country list (per-site configuration)
+      if (
+        params.blockedCountries?.length &&
+        params.geoIp.countryCode &&
+        params.blockedCountries.includes(params.geoIp.countryCode)
+      ) {
+        score += 30;
+        anomalies.push('blocked_country');
+      }
     }
 
     // Clamp score to 0-100

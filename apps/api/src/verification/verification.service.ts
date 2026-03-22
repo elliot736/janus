@@ -14,6 +14,7 @@ import { RiskScoringService } from './risk-scoring.service';
 import { FingerprintService } from './fingerprint.service';
 import { TokenService } from './token.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { GeoIpService } from '../geoip/geoip.service';
 
 interface VerifyParams {
   siteKey: string;
@@ -43,6 +44,7 @@ export class VerificationService {
     private readonly fingerprintService: FingerprintService,
     private readonly tokenService: TokenService,
     private readonly metricsService: MetricsService,
+    private readonly geoIpService: GeoIpService,
   ) {}
 
   async verify(params: VerifyParams) {
@@ -110,7 +112,12 @@ export class VerificationService {
     const siteSettings = site.settings as Record<string, unknown> | null;
     const gdprMode = (siteSettings?.gdprMode as boolean) ?? false;
 
-    // 6. Compute fingerprint hash
+    // 6. GeoIP lookup (in-memory, IP is not stored or logged)
+    const geoIp = this.geoIpService.lookup(params.ipAddress);
+    const blockedCountries =
+      (siteSettings?.blockedCountries as string[] | undefined) ?? [];
+
+    // 7. Compute fingerprint hash
     // Fingerprint hashes are not personal data (they're one-way hashes of
     // aggregated browser properties), so they run in both standard and GDPR mode.
     const fingerprintHash = params.fingerprint
@@ -136,6 +143,13 @@ export class VerificationService {
       ipAddress: params.ipAddress,
       ja3Hash: challenge.ja3Hash,
       mode: siteMode,
+      geoIp: {
+        countryCode: geoIp.countryCode,
+        isDatacenter: geoIp.isDatacenter,
+        isVpn: geoIp.isVpn,
+        isProxy: geoIp.isProxy,
+      },
+      blockedCountries,
     });
 
     // 9. Determine action based on risk thresholds
@@ -178,6 +192,7 @@ export class VerificationService {
         behaviorScore: riskResult.behaviorScore ?? null,
         anomalies: riskResult.anomalies,
         powTimeMs: params.solveTimeMs ?? null,
+        countryCode: geoIp.countryCode ?? null,
         ipAddress: storedIp,
       })
       .returning();

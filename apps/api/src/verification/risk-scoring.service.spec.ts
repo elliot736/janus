@@ -226,4 +226,118 @@ describe('RiskScoringService', () => {
       expect(result.behaviorScore).toBe(55);
     });
   });
+
+  describe('GeoIP signals', () => {
+    it('should increase risk by 15 for datacenter IPs', () => {
+      const result = service.score({
+        ...baseParams,
+        geoIp: {
+          countryCode: 'US',
+          isDatacenter: true,
+          isVpn: false,
+          isProxy: false,
+        },
+      });
+      expect(result.score).toBe(65);
+      expect(result.anomalies).toContain('datacenter_ip');
+    });
+
+    it('should increase risk by 10 for VPN detection', () => {
+      const result = service.score({
+        ...baseParams,
+        geoIp: {
+          countryCode: 'NL',
+          isDatacenter: false,
+          isVpn: true,
+          isProxy: false,
+        },
+      });
+      expect(result.score).toBe(60);
+      expect(result.anomalies).toContain('vpn_detected');
+    });
+
+    it('should increase risk by 10 for proxy detection', () => {
+      const result = service.score({
+        ...baseParams,
+        geoIp: {
+          countryCode: 'US',
+          isDatacenter: false,
+          isVpn: false,
+          isProxy: true,
+        },
+      });
+      expect(result.score).toBe(60);
+      expect(result.anomalies).toContain('proxy_detected');
+    });
+
+    it('should increase risk by 30 for blocked country', () => {
+      const result = service.score({
+        ...baseParams,
+        geoIp: {
+          countryCode: 'XX',
+          isDatacenter: false,
+          isVpn: false,
+          isProxy: false,
+        },
+        blockedCountries: ['XX', 'YY'],
+      });
+      expect(result.score).toBe(80);
+      expect(result.anomalies).toContain('blocked_country');
+    });
+
+    it('should not penalize for allowed country', () => {
+      const result = service.score({
+        ...baseParams,
+        geoIp: {
+          countryCode: 'US',
+          isDatacenter: false,
+          isVpn: false,
+          isProxy: false,
+        },
+        blockedCountries: ['XX', 'YY'],
+      });
+      expect(result.score).toBe(50);
+      expect(result.anomalies).not.toContain('blocked_country');
+    });
+
+    it('should stack datacenter + VPN signals', () => {
+      const result = service.score({
+        ...baseParams,
+        geoIp: {
+          countryCode: 'US',
+          isDatacenter: true,
+          isVpn: true,
+          isProxy: false,
+        },
+      });
+      // base 50 + 15 (datacenter) + 10 (VPN) = 75
+      expect(result.score).toBe(75);
+      expect(result.anomalies).toContain('datacenter_ip');
+      expect(result.anomalies).toContain('vpn_detected');
+    });
+
+    it('should not penalize when geoIp is undefined', () => {
+      const result = service.score(baseParams);
+      expect(result.score).toBe(50);
+      expect(result.anomalies).not.toContain('datacenter_ip');
+      expect(result.anomalies).not.toContain('vpn_detected');
+      expect(result.anomalies).not.toContain('proxy_detected');
+      expect(result.anomalies).not.toContain('blocked_country');
+    });
+
+    it('should handle null countryCode with blocked countries list', () => {
+      const result = service.score({
+        ...baseParams,
+        geoIp: {
+          countryCode: null,
+          isDatacenter: false,
+          isVpn: false,
+          isProxy: false,
+        },
+        blockedCountries: ['XX'],
+      });
+      expect(result.score).toBe(50);
+      expect(result.anomalies).not.toContain('blocked_country');
+    });
+  });
 });

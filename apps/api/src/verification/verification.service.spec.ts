@@ -15,6 +15,7 @@ describe('VerificationService', () => {
   let mockFingerprintService: any;
   let mockTokenService: any;
   let mockMetricsService: any;
+  let mockGeoIpService: any;
 
   const fakeSite = {
     id: 'site-uuid-1',
@@ -120,6 +121,17 @@ describe('VerificationService', () => {
       recordRiskScore: jest.fn(),
     };
 
+    mockGeoIpService = {
+      lookup: jest.fn().mockReturnValue({
+        countryCode: 'US',
+        isDatacenter: false,
+        isVpn: false,
+        isProxy: false,
+        asn: null,
+        asnOrg: null,
+      }),
+    };
+
     service = new VerificationService(
       mockDb,
       mockSitesService,
@@ -129,6 +141,7 @@ describe('VerificationService', () => {
       mockFingerprintService,
       mockTokenService,
       mockMetricsService,
+      mockGeoIpService,
     );
   });
 

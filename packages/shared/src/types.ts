@@ -52,4 +52,5 @@ export interface SiteSettings {
     challenge: number;
     block: number;
   };
+  blockedCountries?: string[];
 }

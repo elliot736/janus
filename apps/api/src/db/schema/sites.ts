@@ -18,6 +18,7 @@ export interface SiteSettings {
     block: number;
   };
   gdprMode?: boolean;
+  blockedCountries?: string[];
 }
 
 export const sites = pgTable('sites', {

@@ -12,6 +12,7 @@ import { ApiKeysModule } from './api-keys/api-keys.module';
 import { HealthModule } from './health/health.module';
 import { CleanupModule } from './cleanup/cleanup.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { GeoIpModule } from './geoip/geoip.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { MetricsModule } from './metrics/metrics.module';
     HealthModule,
     CleanupModule,
     MetricsModule,
+    GeoIpModule,
   ],
 })
 export class AppModule {}

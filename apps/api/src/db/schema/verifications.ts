@@ -26,6 +26,7 @@ export const verifications = pgTable('verifications', {
   behaviorScore: integer('behavior_score'),
   anomalies: jsonb('anomalies').$type<string[]>().default([]),
   powTimeMs: integer('pow_time_ms'),
+  countryCode: varchar('country_code', { length: 2 }),
   ipAddress: varchar('ip_address', { length: 45 }).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 });

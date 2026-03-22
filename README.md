@@ -2,7 +2,7 @@
   <img src="https://img.shields.io/badge/status-beta-blue" alt="Status" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
   <img src="https://img.shields.io/badge/SDK_size-~5KB_gzipped-orange" alt="SDK Size" />
-  <img src="https://img.shields.io/badge/tests-74_passing-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-92_passing-brightgreen" alt="Tests" />
 </p>
 
 # Janus
@@ -51,6 +51,7 @@ The server scores each request from 0 (human) to 100 (bot) and returns a signed 
 - **Cross-signal validation** to catch bots that fake individual signals but miss correlations
 - **Fingerprint velocity tracking** to detect bot farms reusing browser profiles across IPs
 - **Mode-aware scoring** that adjusts behavioral expectations based on invisible vs managed mode
+- **GeoIP intelligence** using self-hosted MaxMind GeoLite2 databases — detects datacenter IPs, VPNs, proxies, and per-site blocked countries without storing IP-to-location mappings (GDPR-safe)
 
 ### Platform
 
@@ -163,6 +164,10 @@ Every verification produces a risk score from 0 (human) to 100 (bot). The score 
 | Managed mode, zero behavior   | +15        | Headless browser without interaction  |
 | Invisible mode, low behavior  | +5         | Expected with short collection window |
 | Missing JA3 hash              | +5         | Non-browser HTTP clients              |
+| Datacenter/hosting IP         | +15        | AWS, GCP, Azure, DigitalOcean, etc.   |
+| VPN detected                  | +10        | Anonymous VPN exit nodes              |
+| Proxy detected                | +10        | Anonymous proxy services              |
+| Blocked country               | +30        | Per-site country blocklist            |
 
 **Default thresholds** (configurable per site in the dashboard):
 
@@ -190,6 +195,7 @@ For site owners who want stricter IP handling, Janus supports a per-site **GDPR 
 | Fingerprinting | Yes (SHA-256 hashed) | Yes (SHA-256 hashed) |
 | Behavioral analysis | Yes (aggregate scores) | Yes (aggregate scores) |
 | Automation detection | Yes | Yes |
+| GeoIP intelligence | Yes (country code only) | Yes (country code only) |
 | Risk scoring | All signals | All signals |
 | IP storage | Full IP | Anonymized (last octet zeroed) |
 | Data retention | Manual | Auto-delete after N days |
@@ -226,6 +232,57 @@ Returns the count of deleted verification and challenge records.
 - **No cross-site tracking.** Fingerprint hashes are site-scoped. The same browser produces different hashes on different sites.
 - **No raw signal storage.** Mouse coordinates, keyboard timings, and canvas pixel data are never stored. Only hashed fingerprints and aggregate behavior scores are persisted.
 - **No user profiles.** There is no concept of a "user" on the verification side. Each request is scored independently.
+
+---
+
+## GeoIP Intelligence
+
+Janus includes optional GeoIP-based risk signals using self-hosted [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) databases. All lookups happen in-memory on your server — no IP data is sent to external services.
+
+### How it works
+
+1. When a verification request arrives, the IP is resolved to a country code and ASN using the local MaxMind database
+2. The country code and network type flags (datacenter, VPN, proxy) feed into risk scoring
+3. **Only the 2-letter country code** is stored in the verification record — the full IP-to-location mapping is never persisted
+4. The full IP is then anonymized (in GDPR mode) or stored as usual
+
+This design is GDPR-safe by construction: country codes are not personal data under GDPR because they cannot identify an individual.
+
+### Setup
+
+1. Create a free MaxMind account at [maxmind.com](https://www.maxmind.com/en/geolite2/signup)
+2. Download the GeoLite2-City and GeoLite2-ASN databases (`.mmdb` format)
+3. Place them in `data/geoip/` (or set `GEOIP_DB_PATH` to a custom directory):
+
+```bash
+mkdir -p data/geoip
+# Copy your downloaded .mmdb files:
+cp GeoLite2-City.mmdb data/geoip/
+cp GeoLite2-ASN.mmdb data/geoip/
+```
+
+GeoIP is **fully optional**. If the database files are not present, Janus starts normally with geo-based signals disabled. A warning is logged at startup.
+
+### Risk signals
+
+| Signal              | Effect | What It Catches                            |
+| ------------------- | ------ | ------------------------------------------ |
+| Datacenter IP       | +15    | Requests from AWS, GCP, Azure, DO, etc.    |
+| VPN detected        | +10    | Traffic through anonymous VPN exit nodes    |
+| Proxy detected      | +10    | Anonymous proxy services                   |
+| Blocked country     | +30    | Country on the site's blocklist             |
+
+### Per-site blocked countries
+
+You can block specific countries per site via the dashboard or API:
+
+```bash
+curl -X PUT https://your-janus.com/api/v1/sites/:id \
+  -H 'Content-Type: application/json' \
+  -d '{"settings": {"blockedCountries": ["XX", "YY"]}}'
+```
+
+Requests from blocked countries receive a +30 risk score penalty, which in most configurations pushes them into the `block` action.
 
 ---
 
@@ -392,7 +449,7 @@ Four GitHub Actions workflows handle the full lifecycle:
 
 | Workflow            | Trigger                 | Steps                                                                                    |
 | ------------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
-| **ci.yml**          | PR / push to main       | Type-check all packages, build, run 74 unit tests                                        |
+| **ci.yml**          | PR / push to main       | Type-check all packages, build, run 92 unit tests                                        |
 | **deploy.yml**      | Push to main            | Build Docker images, push to ECR, deploy to ECS, upload SDK to S3, invalidate CloudFront |
 | **sdk-publish.yml** | Tag `sdk-v*`            | Verify bundle < 10KB gzipped, publish to npm                                             |
 | **terraform.yml**   | Changes in `terraform/` | Plan on PR (comment on PR), apply on merge                                               |
@@ -469,6 +526,7 @@ janus/
 │   │       ├── health/         Liveness and readiness probes
 │   │       ├── metrics/        Prometheus counters
 │   │       ├── cleanup/        Expired challenge cron
+│   │       ├── geoip/          GeoIP lookups (MaxMind GeoLite2)
 │   │       └── db/             Drizzle schema
 │   └── dashboard/          Next.js admin UI
 │       └── src/
@@ -508,7 +566,8 @@ janus/
 | Reverse Proxy  | Nginx 1.27                                    |
 | CI/CD          | GitHub Actions, OIDC for AWS                  |
 | Monorepo       | Turborepo                                     |
-| Testing        | Jest, 74 unit tests                           |
+| GeoIP          | MaxMind GeoLite2 (self-hosted, GDPR-safe)     |
+| Testing        | Jest, 92 unit tests                           |
 
 ---
 
@@ -526,11 +585,11 @@ jns_api_xxxx            API key (site-scoped, stored as SHA-256 hash)
 
 ```bash
 cd apps/api
-npm test            # 74 tests
+npm test            # 92 tests
 npm run test:cov    # with coverage report
 ```
 
-Tests cover risk scoring, token issuance and verification, PoW validation, challenge service, verification orchestration, and site management. All external dependencies (database, Redis) are mocked.
+Tests cover risk scoring (including GeoIP signals), GeoIP service, token issuance and verification, PoW validation, challenge service, verification orchestration, and site management. All external dependencies (database, Redis, MaxMind) are mocked.
 
 ---
 

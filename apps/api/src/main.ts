@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { config } from 'dotenv';
 config({ path: ['.env.local', '.env'] });
 import { NestFactory } from '@nestjs/core';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -30,9 +31,25 @@ async function bootstrap() {
   app.useGlobalInterceptors(new LoggingInterceptor());
   app.useGlobalPipes(new ValidationPipe());
 
+  // Swagger / OpenAPI docs (non-production only)
+  if (process.env.NODE_ENV !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Janus API')
+      .setDescription('Self-hosted bot detection platform API')
+      .setVersion('0.1.0')
+      .addApiKey({ type: 'apiKey', name: 'X-Site-Key', in: 'header' }, 'site-key')
+      .addCookieAuth('better-auth.session_token')
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('docs', app, document);
+  }
+
   const port = process.env.PORT || 3001;
   await app.listen(port);
   console.log(`Janus API is running on http://0.0.0.0:${port}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`API docs available at http://0.0.0.0:${port}/docs`);
+  }
 }
 
 bootstrap();

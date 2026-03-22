@@ -448,8 +448,10 @@ await this.alerting.sendAlert({
 
 ## Deploy
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/janus?referralCode=janus)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/elliot736/janus)
+
+<!-- [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/YOUR_TEMPLATE_ID) -->
+<!-- Uncomment after creating a Railway template at https://railway.com/button -->
 
 Or use Docker Compose:
 

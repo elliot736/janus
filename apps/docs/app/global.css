@@ -2,9 +2,67 @@
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
 
-:root, .dark {
+/* Override fumadocs accent to #d4a254 */
+:root {
   --fd-primary: 39 63% 58%;
   --fd-ring: 39 63% 58%;
+  --fd-primary-foreground: 0 0% 100%;
+
+  /* Links and interactive elements */
+  --fd-color-link: #b8873a;
+  --fd-sidebar-active: #b8873a;
+}
+
+.dark {
+  --fd-primary: 39 63% 58%;
+  --fd-ring: 39 63% 58%;
+  --fd-primary-foreground: 0 0% 5%;
+
+  --fd-color-link: #d4a254;
+  --fd-sidebar-active: #d4a254;
+}
+
+/* Force accent color on fumadocs components that use primary */
+:root {
+  --color-fd-primary: oklch(0.73 0.12 70);
+  --color-fd-ring: oklch(0.73 0.12 70);
+}
+
+.dark {
+  --color-fd-primary: oklch(0.77 0.12 70);
+  --color-fd-ring: oklch(0.77 0.12 70);
+}
+
+/* Sidebar active item */
+[data-active="true"] {
+  color: #d4a254 !important;
+}
+
+/* Docs links */
+.prose a:not([class]) {
+  color: var(--j-accent);
+  text-decoration-color: var(--j-accent);
+}
+
+/* Tab active underline */
+[role="tab"][data-state="active"] {
+  border-color: var(--j-accent) !important;
+  color: var(--j-accent) !important;
+}
+
+/* Callout accent border */
+[data-callout] {
+  border-left-color: var(--j-accent) !important;
+}
+
+/* Card hover border */
+[data-card]:hover {
+  border-color: var(--j-accent) !important;
+}
+
+/* Steps counter */
+[data-step]::before {
+  background-color: var(--j-accent) !important;
 }
 
 /* Light/dark semantic tokens for custom pages */

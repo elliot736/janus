@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Janus SDK Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #e5e5e5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .card { background: #171717; border: 1px solid #262626; border-radius: 12px; padding: 32px; max-width: 420px; width: 100%; }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    p { font-size: 14px; color: #a3a3a3; margin-bottom: 24px; }
+    label { display: block; font-size: 13px; color: #a3a3a3; margin-bottom: 6px; }
+    input { width: 100%; padding: 10px 12px; background: #0a0a0a; border: 1px solid #262626; border-radius: 8px; color: #e5e5e5; font-size: 14px; margin-bottom: 16px; outline: none; }
+    input:focus { border-color: #3b82f6; }
+    button { width: 100%; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    button:hover { background: #2563eb; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 13px; font-family: monospace; white-space: pre-wrap; word-break: break-all; }
+    .status.success { background: #052e16; border: 1px solid #166534; color: #4ade80; }
+    .status.error { background: #450a0a; border: 1px solid #991b1b; color: #f87171; }
+    .status.info { background: #172554; border: 1px solid #1e40af; color: #60a5fa; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Contact Form</h1>
+    <p>Protected by Janus bot detection</p>
+    <form id="contactForm">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" required placeholder="Your name">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required placeholder="you@example.com">
+      <label for="message">Message</label>
+      <input type="text" id="message" name="message" required placeholder="Your message">
+      <input type="hidden" name="janus-token" id="janusToken">
+      <button type="submit" id="submitBtn">Submit</button>
+    </form>
+    <div id="status" class="status info" style="display:none"></div>
+  </div>
+
+  <script src="../packages/sdk/dist/janus.js"></script>
+  <script>
+    const janus = new Janus.Janus({
+      siteKey: 'jns_site_live_kU_mQLycaj2kfelQAZR-NpHQBOpLcCkS',
+      apiUrl: 'http://localhost:3001',
+      mode: 'invisible',
+    });
+
+    const form = document.getElementById('contactForm');
+    const statusEl = document.getElementById('status');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function showStatus(msg, type) {
+      statusEl.style.display = 'block';
+      statusEl.className = 'status ' + type;
+      statusEl.textContent = msg;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Verifying...';
+      showStatus('Running Janus verification...', 'info');
+
+      try {
+        const result = await janus.execute();
+
+        if (result.success) {
+          document.getElementById('janusToken').value = result.token;
+          showStatus(
+            'Verification passed!\n\n' +
+            'Action: ' + result.action + '\n' +
+            'Risk Score: ' + result.riskScore + '\n' +
+            'Token: ' + result.token.substring(0, 40) + '...\n\n' +
+            'Form would now submit to your backend with the token.',
+            'success'
+          );
+        } else {
+          showStatus('Verification failed: ' + JSON.stringify(result), 'error');
+        }
+      } catch (err) {
+        showStatus('Error: ' + err.message, 'error');
+      }
+
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit';
+    });
+  </script>
+</body>
+</html>

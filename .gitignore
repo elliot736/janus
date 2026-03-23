@@ -12,3 +12,4 @@ seed-credentials.json
 .terraform/
 *.tfstate
 *.tfstate.backup
+.vercel

@@ -16,6 +16,8 @@
   "devDependencies": {
     "@eslint/js": "^9.16.0",
     "eslint": "^9.16.0",
+    "fumadocs-core": "^15.8.5",
+    "next": "^15.5.14",
     "turbo": "^2",
     "typescript-eslint": "^8.0.0"
   },

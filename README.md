@@ -9,6 +9,12 @@
 
 **Bot detection you own.** A self-hosted alternative to Cloudflare Turnstile. No third-party scripts. No user tracking. No data leaving your servers.
 
+<p align="center">
+  <a href="https://janus-docs.vercel.app">Documentation</a> &middot;
+  <a href="https://janus-docs.vercel.app/docs/getting-started/quickstart">Quick Start</a> &middot;
+  <a href="https://janus-docs.vercel.app/docs/integration/react">Integration</a>
+</p>
+
 Janus protects your forms, logins, and APIs from bots using proof-of-work challenges, browser fingerprinting, behavioral analysis, and cross-signal validation. You deploy it on your own infrastructure and keep full control.
 
 <p align="center">
